@@ -1,5 +1,20 @@
-theme: jekyll-theme-cayman
 title: OrbitPS2 Manager
 description: A modern, cross-platform way to manage your OPL game collection.
-show_downloads: false
-logo: /assets/logo.svg
+url: "https://luden02.github.io"
+baseurl: "/OrbitPS2-Manager"
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+nav:
+  - title: Home
+    url: /
+  - title: Installation
+    url: /installation.html
+  - title: How-To Guide
+    url: /guide.html
+  - title: Folder Layout
+    url: /folder-layout.html
+  - title: Contributing
+    url: /contributing.html

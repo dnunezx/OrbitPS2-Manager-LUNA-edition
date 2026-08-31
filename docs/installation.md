@@ -1,8 +1,7 @@
 ---
+layout: default
 title: Installation
 ---
-
-[Home](./) · **[Installation](installation.md)** · [How-To Guide](guide.md) · [Folder Layout](folder-layout.md) · [Contributing](contributing.md) · [GitHub](https://github.com/Luden02/OrbitPS2-Manager)
 
 # 💻 Installation
 

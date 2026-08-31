@@ -1,19 +1,20 @@
 ---
+layout: default
 title: Home
 ---
 
 ![Logo](assets/logo.svg)
 
-**[Home](./)** · [Installation](installation.md) · [How-To Guide](guide.md) · [Folder Layout](folder-layout.md) · [Contributing](contributing.md) · [GitHub](https://github.com/Luden02/OrbitPS2-Manager)
-
 # OrbitPS2 Manager
 
 A modern, cross-platform way to manage your PlayStation OPL game collection.
 
+<span class="badge-row">
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-green)
 [![Releases](https://img.shields.io/github/v/release/Luden02/OrbitPS2-Manager)](https://github.com/Luden02/OrbitPS2-Manager/releases)
 [![AUR](https://img.shields.io/aur/version/orbitopl-toolbox-bin)](https://aur.archlinux.org/packages/orbitopl-toolbox-bin)
+</span>
 
 ## About
 
