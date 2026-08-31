@@ -1,0 +1,5 @@
+theme: jekyll-theme-cayman
+title: OrbitPS2 Manager
+description: A modern, cross-platform way to manage your OPL game collection.
+show_downloads: false
+logo: /assets/logo.svg
