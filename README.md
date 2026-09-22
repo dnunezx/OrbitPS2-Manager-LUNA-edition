@@ -1,4 +1,4 @@
-![Logo](angular/public/logo.svg)
+![Logo](assets/orbitps2-manager-logo.svg)
 
 **OrbitPS2 Manager - LUNA Edition** — a LUNA-aware, cross-platform manager for PlayStation 2 libraries and PSBBN artwork.
 
