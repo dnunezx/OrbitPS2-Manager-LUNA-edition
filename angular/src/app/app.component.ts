@@ -1,3 +1,4 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 import { Component, isDevMode } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { LogsService } from './shared/services/logs.service';
@@ -47,7 +48,7 @@ export class AppComponent {
       `App initialized (${BuildInfo.version}) [OS: ${os}]`,
     );
 
-    window.windowAPI.wmInfo().then((info) => {
+    window.windowAPI?.wmInfo?.().then((info) => {
       if (info.name) {
         this._logger.log('AppComponent', `Desktop environment: ${info.name}`);
       }

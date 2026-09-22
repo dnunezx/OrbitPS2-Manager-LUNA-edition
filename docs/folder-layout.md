@@ -5,7 +5,7 @@ title: Folder Layout
 
 # 📁 OPL folder layout
 
-OrbitPS2 Manager reads and writes the standard OPL directory structure:
+OrbitPS2 Manager - LUNA Edition reads and writes the standard OPL directory structure plus LUNA's PSBBN artwork directory:
 
 ```
 OPL_ROOT/
@@ -15,6 +15,7 @@ OPL_ROOT/
 ├── POPS/   — PS1 discs (.vcd) and POPStarter launchers (.elf) + POPS VMCs
 ├── APPS/   — Homebrew apps (one folder each, with title.cfg)
 ├── ART/    — Artwork (GAMEID_COV.png, GAMEID_ICO.png, GAMEID_SCR.png)
+│   └── PSBBN/ — LUNA square jackets (GAMEID.png)
 ├── CFG/    — Per-game OPL settings (GAMEID.cfg)
 └── VMC/    — Virtual memory cards (.bin)
 ```

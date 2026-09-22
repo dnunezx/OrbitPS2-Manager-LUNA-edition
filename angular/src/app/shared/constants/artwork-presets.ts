@@ -1,3 +1,4 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 /** Friendly label for each known art-type suffix (`GAMEID_<code>.png`). */
 export const ART_TYPE_LABELS: Record<string, string> = {
   COV: 'Cover',
@@ -10,6 +11,7 @@ export const ART_TYPE_LABELS: Record<string, string> = {
   BG: 'Background',
   LAB: 'Spine Label',
   LGO: 'Logo',
+  PSBBN: 'PSBBN Jacket',
 };
 
 /** Returns a friendly label for a type code, falling back to the code itself. */
@@ -33,6 +35,7 @@ export const KNOWN_ART_TYPES = [
   'BG',
   'LAB',
   'LGO',
+  'PSBBN',
 ];
 
 export interface ArtworkPreset {
@@ -49,6 +52,7 @@ export interface ArtworkPreset {
 export const ARTWORK_PRESETS: ArtworkPreset[] = [
   { id: 'all', label: 'All Available', types: null },
   { id: 'opl', label: 'OpenPS2Loader', types: ['COV', 'ICO'] },
+  { id: 'luna', label: 'LUNA PSBBN', types: ['COV', 'ICO', 'PSBBN'] },
   { id: 'riptopl', label: 'RiptOPL', types: ['COV', 'ICO', 'COV3'] },
   { id: 'minimal', label: 'Icon Only', types: ['ICO'] },
 ];

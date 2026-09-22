@@ -1,9 +1,9 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 import {
   ApplicationConfig,
   importProvidersFrom,
   provideZoneChangeDetection,
 } from '@angular/core';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, withHashLocation } from '@angular/router';
 import { LucideAngularModule, icons } from 'lucide-angular';
 
@@ -13,7 +13,6 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes, withHashLocation()),
-    provideAnimations(),
     importProvidersFrom(LucideAngularModule.pick(icons)),
   ],
 };

@@ -1,3 +1,4 @@
+/* Copyright (c) 2026 dnunezx — original LUNA Edition changes. */
 :host {
   display: block;
   height: 100%;
@@ -101,7 +102,6 @@
   box-shadow:
     0 8px 32px oklch(0% 0 0 / 0.5),
     0 0 0 1px oklch(100% 0 0 / 0.08);
-  transition: box-shadow 0.2s ease;
 }
 
 .details-cover-missing {

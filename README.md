@@ -1,18 +1,25 @@
 ![Logo](angular/public/logo.svg)
 
-**OrbitPS2 Manager** — a modern, cross-platform way to manage your PlayStation OPL game collection.
+**OrbitPS2 Manager - LUNA Edition** — a LUNA-aware, cross-platform manager for PlayStation 2 libraries and PSBBN artwork.
 
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-green)
-[![Releases](https://img.shields.io/github/v/release/Luden02/OrbitPS2-Manager)](https://github.com/Luden02/OrbitPS2-Manager/releases)
-[![AUR](https://img.shields.io/aur/version/orbitopl-toolbox-bin)](https://aur.archlinux.org/packages/orbitopl-toolbox-bin)
+
+---
+
+First public release of the LUNA-focused edition of OrbitPS2 Manager.
+
+## What’s different
+
+- **Faster large-file transfers** — Windows cross-device moves use optimized unbuffered copying, improving transfer performance for large game images.
+- **New LUNA cover art** — download square PSBBN jackets from the PSBBN Art Database or import a custom image, automatically center-cropped and saved as a 256×256 PNG.
+- **LUNA-native artwork layout** — jackets are stored using `ART/PSBBN/<GAME_ID>.png`.
 
 # 📖 About
 
-OrbitPS2 Manager is an open-source, cross-platform desktop application for organizing your PlayStation 2 (and PlayStation 1) game library for use with [Open PS2 Loader (OPL)](https://github.com/ps2homebrew/Open-PS2-Loader).
+OrbitPS2 Manager - LUNA Edition is an open-source, cross-platform desktop application for organizing PlayStation 2 and PlayStation 1 libraries for LUNA and [Open PS2 Loader (OPL)](https://github.com/ps2homebrew/Open-PS2-Loader).
 
-It was created to fill the gap left by OPLManager, which lacks macOS and Linux support.
-The goal isn't to replace OPLManager, but to offer an alternative — one that's modern, intuitive, and built with technologies familiar to JavaScript developers.
+This project is derived from [OrbitPS2 Manager](https://github.com/Luden02/OrbitPS2-Manager) and retains its GPL-3.0 license and attribution.
 
 > Built with Electron + Angular, styled with Tailwind CSS & daisyUI. Cross-platform: **Windows, macOS, and Linux**.
 
@@ -46,6 +53,9 @@ The goal isn't to replace OPLManager, but to offer an alternative — one that's
 - Download cover, icon, and screenshot art (`COV` / `ICO` / `SCR`) for **PS1 & PS2**
 - Fetch art for a **single game** or for your **entire library** in one click
 - Sourced from the [PSX / PS2 OPL Art Database](https://github.com/Luden02/psx-ps2-opl-art-database)
+- Download square PSBBN jackets from the [PSBBN Art Database](https://github.com/CosmicScale/psbbn-art-database)
+- Import a custom image; OrbitPS2 Manager - LUNA Edition center-crops and saves it as a 256×256 PNG
+- Save PSBBN jackets using LUNA's `ART/PSBBN/<GAME_ID>.png` convention
 
 ### 🗜️ Compression & conversion
 
@@ -89,7 +99,7 @@ On Arch Linux you can also use the [AUR binary](https://aur.archlinux.org/packag
 ### 🪟 Windows
 
 1. Download the **`.exe`** installer (or the portable **`.zip`** if you'd rather not install).
-2. Run it — the installer walks you through setup; the `.zip` just needs extracting, then run `OrbitPS2Manager.exe`.
+2. Run it — the installer walks you through setup; the `.zip` just needs extracting, then run `OrbitPS2 Manager - LUNA Edition.exe`.
 3. If **SmartScreen** appears, click **"More info" → "Run anyway"** (the app is unsigned but 100% safe).
 
 ### 🍏 macOS
@@ -97,17 +107,17 @@ On Arch Linux you can also use the [AUR binary](https://aur.archlinux.org/packag
 1. Download the `.dmg` for your architecture:
    - **arm64** (Apple Silicon — _recommended and tested_)
    - **x64** (Intel Macs)
-2. Open the `.dmg` and drag **OrbitPS2Manager** to your **Applications** folder.
+2. Open the `.dmg` and drag **OrbitPS2 Manager - LUNA Edition** to your **Applications** folder.
 3. Because the app is **unsigned** (but **100% safe**), macOS quarantines it. Remove the quarantine flag by running this in your **terminal**:
    ```bash
-   xattr -dr com.apple.quarantine /Applications/OrbitPS2Manager.app
+   xattr -dr com.apple.quarantine "/Applications/OrbitPS2 Manager - LUNA Edition.app"
    ```
 4. **Run** the app.
 
 ### 🐧 Linux
 
 1. Download the **`.AppImage`**, **`.deb`**, or **`.zip`** (whichever suits your distro).
-2. For the **AppImage**: make it executable and run it. For the **`.deb`**: install it with your package manager. For the **`.zip`**: extract and run the `OrbitPS2Manager` binary.
+2. For the **AppImage**: make it executable and run it. For the **`.deb`**: install it with your package manager. For the **`.zip`**: extract and run the `OrbitPS2 Manager - LUNA Edition` binary.
 
 # 🚀 How-To Guide
 
@@ -221,7 +231,7 @@ If you change your mind after importing, you can convert existing PS1 games betw
 
 # 📁 OPL folder layout
 
-OrbitPS2 Manager reads and writes the standard OPL directory structure:
+OrbitPS2 Manager - LUNA Edition reads and writes the standard OPL directory structure plus LUNA's PSBBN artwork directory:
 
 ```
 OPL_ROOT/
@@ -231,6 +241,7 @@ OPL_ROOT/
 ├── POPS/   — PS1 discs (.vcd) and POPStarter launchers (.elf) + POPS VMCs
 ├── APPS/   — Homebrew apps (one folder each, with title.cfg)
 ├── ART/    — Artwork (GAMEID_COV.png, GAMEID_ICO.png, GAMEID_SCR.png)
+│   └── PSBBN/ — LUNA square jackets (GAMEID.png)
 ├── CFG/    — Per-game OPL settings (GAMEID.cfg)
 └── VMC/    — Virtual memory cards (.bin)
 ```
@@ -243,7 +254,7 @@ This project is licensed under the GNU General Public License v3.0 — see the [
 
 # 🤝 Contributing
 
-Contributions are welcome! Here's how you can help improve OrbitPS2 Manager:
+Contributions are welcome! Here's how you can help improve OrbitPS2 Manager - LUNA Edition:
 
 ## Ways to Contribute
 

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 import {
   app,
   BrowserWindow,
@@ -29,7 +30,7 @@ function createWindow() {
     height: size.minHeight,
     minWidth: size.minWidth,
     minHeight: size.minHeight,
-    title: `OrbitPS2 Manager (${PackageInfo.version})`,
+    title: `OrbitPS2 Manager - LUNA Edition (${PackageInfo.version})`,
     icon: path.join(__dirname, "assets", "applogo", "icon_512x512.png"),
     frame: isMac,
     webPreferences: {
@@ -71,7 +72,7 @@ function createWindow() {
     Menu.setApplicationMenu(
       Menu.buildFromTemplate([
         {
-          label: "OrbitPS2 Manager",
+          label: "OrbitPS2 Manager - LUNA Edition",
           submenu: [
             {
               label: "Quit",
@@ -128,7 +129,7 @@ function createWindow() {
   };
 
   log.info(
-    `Launching OrbitPS2 Manager v${PackageInfo.version} (${
+    `Launching OrbitPS2 Manager - LUNA Edition v${PackageInfo.version} (${
       serve ? "dev/serve" : "packaged"
     } mode) on ${process.platform}`
   );

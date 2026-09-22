@@ -1,3 +1,4 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 import { Component, computed, input, output, signal } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
 import {
@@ -26,7 +27,7 @@ export class ArtworkBulkDialogComponent {
   readonly knownTypes = KNOWN_ART_TYPES;
   readonly artTypeLabel = artTypeLabel;
 
-  readonly selected = signal<Set<string>>(new Set(['COV', 'ICO', 'SCR']));
+  readonly selected = signal<Set<string>>(new Set(['COV', 'ICO', 'PSBBN']));
   readonly skipExisting = signal(false);
   readonly selectedCount = computed(() => this.selected().size);
 

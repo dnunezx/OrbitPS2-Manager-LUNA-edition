@@ -1,3 +1,4 @@
+/* Copyright (c) 2026 dnunezx — original LUNA Edition changes. */
 /* ───────────────────────────────────────────────────────────────
    OrbitPS2 Manager — global chrome & shared "console dashboard" atmosphere
    Every color here is derived from the active daisyUI theme's tokens
@@ -177,8 +178,7 @@ app-root {
   overflow: hidden;
   background: color-mix(in oklch, var(--color-base-100) 70%, transparent);
   border: 1px solid color-mix(in oklch, var(--color-base-content) 12%, transparent);
-  transition: transform 0.18s ease, box-shadow 0.18s ease,
-    border-color 0.18s ease;
+  transition: transform 0.18s ease, border-color 0.18s ease;
 }
 
 .tile:hover {
@@ -253,7 +253,8 @@ app-root {
   font-weight: 500;
   color: color-mix(in oklch, var(--color-base-content) 62%, transparent);
   border: 1px solid transparent;
-  transition: all 0.16s ease;
+  transition: color 0.16s ease, background-color 0.16s ease,
+    border-color 0.16s ease;
   cursor: pointer;
 }
 
@@ -336,4 +337,17 @@ app-root {
   // which makes it a CSS containing block for any `position: fixed`
   // descendant (e.g. our modal dialogs), breaking their viewport centering.
   animation: orbit-fade-in 0.25s ease;
+}
+
+/* Respect the OS motion preference and avoid running decorative transitions
+   and infinite spinners for users who request reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

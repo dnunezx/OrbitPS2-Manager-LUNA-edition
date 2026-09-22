@@ -1,7 +1,7 @@
-title: OrbitPS2 Manager
-description: A modern, cross-platform way to manage your OPL game collection.
-url: "https://luden02.github.io"
-baseurl: "/OrbitPS2-Manager"
+title: OrbitPS2 Manager - LUNA Edition
+description: A LUNA-aware manager for PS2 libraries and PSBBN artwork.
+url: ""
+baseurl: ""
 markdown: kramdown
 kramdown:
   input: GFM

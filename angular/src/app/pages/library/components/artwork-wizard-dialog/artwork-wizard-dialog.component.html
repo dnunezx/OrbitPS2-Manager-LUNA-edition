@@ -1,3 +1,4 @@
+<!-- Copyright (c) 2026 dnunezx — original LUNA Edition changes. -->
 <div class="aw-backdrop" (click)="close()"></div>
 <div class="aw-modal glass-strong" role="dialog" aria-modal="true">
   <div class="flex items-center gap-2 border-b border-base-content/10 px-5 py-3">
@@ -19,16 +20,40 @@
     <div class="flex items-center justify-center py-12">
       <span class="loading loading-spinner text-accent"></span>
     </div>
-  } @else if (errorMessage()) {
-    <div class="flex flex-col items-center gap-2 px-5 py-10 text-center">
-      <i-lucide name="image-off" size="28" class="text-base-content/40"></i-lucide>
-      <p class="text-sm text-base-content/60">{{ errorMessage() }}</p>
-    </div>
-    <div class="flex justify-end gap-2 border-t border-base-content/10 px-5 py-3">
-      <button class="btn btn-ghost btn-sm" (click)="close()">Close</button>
-    </div>
   } @else {
     <div class="aw-body flex flex-col gap-4 px-5 py-4">
+      @if (errorMessage()) {
+        <div class="alert alert-warning py-2 text-xs">
+          <i-lucide name="triangle-alert" size="16"></i-lucide>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      @if (supportsPsbbn) {
+        <fieldset class="fieldset rounded-box border border-primary/20 bg-primary/5 p-3">
+          <legend class="fieldset-legend text-primary">LUNA PSBBN artwork</legend>
+          <p class="mb-2 text-xs text-base-content/60">
+            LUNA reads square jackets from <span class="font-mono">ART/PSBBN/{{ game().gameId }}.png</span>.
+          </p>
+          <button
+            class="btn btn-sm btn-outline btn-primary self-start"
+            [disabled]="importingCustom()"
+            (click)="importCustomPsbbn()"
+          >
+            @if (importingCustom()) {
+              <span class="loading loading-spinner loading-xs"></span>
+            } @else {
+              <i-lucide name="image-plus" size="15"></i-lucide>
+            }
+            Choose custom image
+          </button>
+          @if (importMessage()) {
+            <p class="mt-2 text-xs text-base-content/70">{{ importMessage() }}</p>
+          }
+        </fieldset>
+      }
+
+      @if (options().length > 0) {
       <fieldset class="fieldset">
         <legend class="fieldset-legend">Presets</legend>
         <div class="flex flex-wrap gap-2">
@@ -65,6 +90,11 @@
           </label>
         }
       </div>
+      } @else {
+        <p class="py-4 text-center text-sm text-base-content/55">
+          No downloadable artwork was found. You can still choose a custom PSBBN image above.
+        </p>
+      }
     </div>
 
     <div class="flex items-center justify-between gap-3 border-t border-base-content/10 px-5 py-3">

@@ -5,7 +5,7 @@ title: Home
 
 ![Logo](assets/logo.svg)
 
-# OrbitPS2 Manager
+# OrbitPS2 Manager - LUNA Edition
 
 A modern, cross-platform way to manage your PlayStation OPL game collection.
 
@@ -18,7 +18,7 @@ A modern, cross-platform way to manage your PlayStation OPL game collection.
 
 ## About
 
-OrbitPS2 Manager is an open-source, cross-platform desktop application for organizing your PlayStation 2 (and PlayStation 1) game library for use with [Open PS2 Loader (OPL)](https://github.com/ps2homebrew/Open-PS2-Loader).
+OrbitPS2 Manager - LUNA Edition is an open-source, cross-platform desktop application for organizing PlayStation 2 and PlayStation 1 libraries for LUNA and [Open PS2 Loader (OPL)](https://github.com/ps2homebrew/Open-PS2-Loader). It is derived from [OrbitPS2 Manager](https://github.com/Luden02/OrbitPS2-Manager).
 
 It was created to fill the gap left by OPLManager, which lacks macOS and Linux support. The goal isn't to replace OPLManager, but to offer an alternative — one that's modern, intuitive, and built with technologies familiar to JavaScript developers.
 
@@ -90,7 +90,7 @@ It was created to fill the gap left by OPLManager, which lacks macOS and Linux s
 
 - [**Installation**](installation.md) — grab a build for Windows, macOS, or Linux
 - [**How-To Guide**](guide.md) — mounting a library, importing games, artwork, VMCs, and more
-- [**Folder Layout**](folder-layout.md) — the OPL directory structure OrbitPS2 Manager reads and writes
+- [**Folder Layout**](folder-layout.md) — the OPL and LUNA directory structure OrbitPS2 Manager - LUNA Edition reads and writes
 - [**Contributing**](contributing.md) — dev setup, running from source, and the PR process
 
 ## License

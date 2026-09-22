@@ -1,3 +1,4 @@
+<!-- Copyright (c) 2026 dnunezx — original LUNA Edition changes. -->
 <div class="page flex h-full flex-col fade-in">
   <header class="page-header glass flex items-center gap-3 px-6">
     <i-lucide name="info" size="26" class="text-accent"></i-lucide>
@@ -8,7 +9,7 @@
     <div class="flex flex-col items-center text-center mb-8">
       <img
         src="logo.svg"
-        alt="OrbitPS2 Manager"
+        alt="OrbitPS2 Manager - LUNA Edition"
         class="w-[26rem] h-auto mb-4 drop-shadow-[0_0_24px_color-mix(in_oklch,var(--color-primary)_38%,transparent)]"
       />
       <p class="text-base-content/60 mt-1 max-w-xl">
@@ -71,12 +72,12 @@
             <i-lucide name="github" size="20" class="text-accent"></i-lucide> Source Code
           </h2>
           <p class="text-sm text-base-content/70">
-            Found a bug? Got an idea? Pull requests and issues are warmly
-            welcomed.
+            OrbitPS2 Manager - LUNA Edition is derived from OrbitPS2 Manager. The upstream source
+            and its complete history remain available here.
           </p>
           <a
             href="#"
-            (click)="openExternal(repoUrl, $event)"
+            (click)="openExternal(upstreamRepoUrl, $event)"
             class="link link-primary text-sm mt-1 break-all"
             >github.com/Luden02/OrbitPS2-Manager →</a
           >
@@ -89,14 +90,20 @@
             <i-lucide name="image" size="20" class="text-accent"></i-lucide> Artwork Database
           </h2>
           <p class="text-sm text-base-content/70">
-            Game covers, icons and screenshots are pulled from a separate
-            community-maintained art repository.
+            Standard OPL artwork and square LUNA PSBBN jackets are pulled from
+            their community-maintained repositories.
           </p>
           <a
             href="#"
             (click)="openExternal(artRepoUrl, $event)"
             class="link link-primary text-sm mt-1 break-all"
             >psx-ps2-opl-art-database →</a
+          >
+          <a
+            href="#"
+            (click)="openExternal(psbbnArtRepoUrl, $event)"
+            class="link link-primary text-sm mt-1 break-all"
+            >psbbn-art-database →</a
           >
         </div>
       </div>

@@ -1,3 +1,4 @@
+<!-- Copyright (c) 2026 dnunezx — original LUNA Edition changes. -->
 <div class="page flex h-full flex-col fade-in">
   <header class="page-header glass flex items-center gap-3 px-6">
     <i-lucide name="settings" size="26" class="text-accent"></i-lucide>
@@ -18,7 +19,7 @@
             <div>
               <p class="font-medium text-sm">Theme</p>
               <p class="text-sm text-base-content/60">
-                OrbitPS2, in dark or light, or the original launch look.
+                OrbitPS2 Manager - LUNA Edition, in dark or light, or the original launch look.
               </p>
             </div>
             <select
@@ -26,9 +27,9 @@
               [value]="(settings$ | async)?.theme"
               (change)="onThemeChange($any($event.target).value)"
             >
-              <option value="orbitps2">OrbitPS2 (Dark)</option>
-              <option value="orbitps2-light">OrbitPS2 (Light)</option>
-              <option value="system">OrbitPS2 (System)</option>
+              <option value="orbitps2">OrbitPS2 Manager - LUNA Edition (Dark)</option>
+              <option value="orbitps2-light">OrbitPS2 Manager - LUNA Edition (Light)</option>
+              <option value="system">OrbitPS2 Manager - LUNA Edition (System)</option>
               <option value="legacy">Legacy</option>
             </select>
           </div>

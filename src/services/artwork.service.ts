@@ -1,9 +1,50 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 import * as fs from "fs/promises";
 import path from "path";
 import https from "https";
+import { dialog, nativeImage } from "electron";
 import { createLogger, formatBytes } from "../logger";
 
 const log = createLogger("artwork");
+const PSBBN_ART_BASE_URL =
+  "https://raw.githubusercontent.com/CosmicScale/psbbn-art-database/refs/heads/main/art";
+
+function isSafeArtworkName(value: string): boolean {
+  return /^[A-Za-z0-9_.-]+$/.test(value);
+}
+
+function getBuffer(url: string): Promise<Buffer> {
+  return new Promise<Buffer>((resolve, reject) => {
+    https
+      .get(url, (res) => {
+        if (res.statusCode !== 200) {
+          res.resume();
+          return reject(new Error(`Request failed: ${res.statusCode}`));
+        }
+        const data: Buffer[] = [];
+        res.on("data", (chunk) => data.push(chunk));
+        res.on("end", () => resolve(Buffer.concat(data)));
+      })
+      .on("error", reject);
+  });
+}
+
+async function remoteFileExists(url: string): Promise<boolean> {
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const request = https.request(url, { method: "HEAD" }, (res) => {
+        res.resume();
+        if (res.statusCode === 200) resolve();
+        else reject(new Error(`Request failed: ${res.statusCode}`));
+      });
+      request.on("error", reject);
+      request.end();
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export async function downloadArtByGameId(
   dirPath: string,
@@ -13,7 +54,8 @@ export async function downloadArtByGameId(
   artTypes?: string[]
 ) {
   const baseUrl = `https://raw.githubusercontent.com/Luden02/psx-ps2-opl-art-database/refs/heads/main/${system}`;
-  const types = artTypes ?? ["COV", "ICO", "SCR"];
+  const types =
+    artTypes ?? (system === "PS2" ? ["COV", "ICO", "SCR", "PSBBN"] : ["COV", "ICO", "SCR"]);
   const results: any[] = [];
   const localName = saveAsName || gameId;
 
@@ -22,27 +64,37 @@ export async function downloadArtByGameId(
   );
 
   for (const type of types) {
-    const fileName = `${gameId}_${type}.png`;
-    const url = `${baseUrl}/${gameId}/${fileName}`;
+    const isPsbbn = type.toUpperCase() === "PSBBN";
+    const fileName = isPsbbn ? `${gameId}.png` : `${gameId}_${type}.png`;
+    const url = isPsbbn
+      ? `${PSBBN_ART_BASE_URL}/${encodeURIComponent(gameId)}.png`
+      : `${baseUrl}/${gameId}/${fileName}`;
     log.verbose(`GET ${url}`);
 
     try {
-      const buffer = await new Promise<Buffer>((resolve, reject) => {
-        https
-          .get(url, (res) => {
-            if (res.statusCode !== 200) {
-              return reject(
-                new Error(`Failed to download ${fileName}: ${res.statusCode}`)
-              );
-            }
-            const data: Buffer[] = [];
-            res.on("data", (chunk) => data.push(chunk));
-            res.on("end", () => resolve(Buffer.concat(data)));
-          })
-          .on("error", reject);
-      });
+      let buffer = await getBuffer(url);
 
-      const savePath = path.join(dirPath, `${localName}_${type}.png`);
+      if (isPsbbn) {
+        const source = nativeImage.createFromBuffer(buffer);
+        if (source.isEmpty()) throw new Error("Downloaded PSBBN artwork is not a valid image");
+
+        const { width, height } = source.getSize();
+        const edge = Math.min(width, height);
+        buffer = source
+          .crop({
+            x: Math.floor((width - edge) / 2),
+            y: Math.floor((height - edge) / 2),
+            width: edge,
+            height: edge,
+          })
+          .resize({ width: 256, height: 256, quality: "best" })
+          .toPNG();
+      }
+
+      const savePath = isPsbbn
+        ? path.join(dirPath, "PSBBN", `${gameId}.png`)
+        : path.join(dirPath, `${localName}_${type}.png`);
+      if (isPsbbn) await fs.mkdir(path.dirname(savePath), { recursive: true });
       await fs.writeFile(savePath, buffer);
       log.verbose(`Saved ${type} artwork (${formatBytes(buffer.length)}) → ${savePath}`);
       results.push({
@@ -92,7 +144,7 @@ export async function listAvailableArt(
           url,
           {
             headers: {
-              "User-Agent": "OrbitPS2-Manager",
+              "User-Agent": "OrbitPS2-Manager-LUNA-Edition",
               Accept: "application/vnd.github+json",
             },
           },
@@ -107,10 +159,6 @@ export async function listAvailableArt(
         .on("error", reject);
     });
 
-    if (body.status === 404) {
-      return { success: true, data: [], message: `No artwork available for ${gameId} yet.` };
-    }
-
     if (body.status === 403) {
       log.warn(`GitHub API rate limit hit while listing art for ${gameId}`);
       return {
@@ -120,7 +168,7 @@ export async function listAvailableArt(
       };
     }
 
-    if (body.status !== 200) {
+    if (body.status !== 200 && body.status !== 404) {
       return {
         success: false,
         data: [],
@@ -128,20 +176,29 @@ export async function listAvailableArt(
       };
     }
 
-    const json = JSON.parse(body.text);
-    if (!Array.isArray(json)) {
-      return { success: true, data: [], message: `No artwork available for ${gameId} yet.` };
-    }
-
     const prefix = `${gameId}_`;
-    const entries: AvailableArtEntry[] = json
-      .filter((entry: any) => entry?.type === "file" && typeof entry.name === "string")
-      .filter((entry: any) => entry.name.startsWith(prefix))
-      .map((entry: any) => ({
-        type: entry.name.slice(prefix.length).replace(/\.(png|jpg|jpeg)$/i, ""),
-        fileName: entry.name,
-        downloadUrl: entry.download_url,
-      }));
+    const json = body.status === 200 ? JSON.parse(body.text) : [];
+    const entries: AvailableArtEntry[] = Array.isArray(json)
+      ? json
+          .filter((entry: any) => entry?.type === "file" && typeof entry.name === "string")
+          .filter((entry: any) => entry.name.startsWith(prefix))
+          .map((entry: any) => ({
+            type: entry.name.slice(prefix.length).replace(/\.(png|jpg|jpeg)$/i, ""),
+            fileName: entry.name,
+            downloadUrl: entry.download_url,
+          }))
+      : [];
+
+    if (system === "PS2") {
+      const psbbnUrl = `${PSBBN_ART_BASE_URL}/${encodeURIComponent(gameId)}.png`;
+      if (await remoteFileExists(psbbnUrl)) {
+        entries.push({
+          type: "PSBBN",
+          fileName: `${gameId}.png`,
+          downloadUrl: psbbnUrl,
+        });
+      }
+    }
 
     log.info(`Found ${entries.length} artwork file(s) for ${gameId} in ${system} database`);
     return { success: true, data: entries };
@@ -149,6 +206,58 @@ export async function listAvailableArt(
     log.warn(`Failed to list artwork for ${gameId}: ${err.message}`);
     return { success: false, data: [], message: err.message };
   }
+}
+
+export async function importCustomPsbbnArt(
+  oplRoot: string,
+  gameId: string
+): Promise<{
+  success: boolean;
+  cancelled?: boolean;
+  savedPath?: string;
+  dataUrl?: string;
+  message?: string;
+}> {
+  if (!isSafeArtworkName(gameId)) {
+    return { success: false, message: "Invalid game ID." };
+  }
+
+  const selection = await dialog.showOpenDialog({
+    title: `Choose PSBBN artwork for ${gameId}`,
+    properties: ["openFile"],
+    filters: [
+      { name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "bmp"] },
+    ],
+  });
+  if (selection.canceled || selection.filePaths.length === 0) {
+    return { success: false, cancelled: true, message: "No image selected." };
+  }
+
+  const source = nativeImage.createFromPath(selection.filePaths[0]);
+  if (source.isEmpty()) {
+    return { success: false, message: "The selected image could not be decoded." };
+  }
+
+  const { width, height } = source.getSize();
+  const edge = Math.min(width, height);
+  const square = source.crop({
+    x: Math.floor((width - edge) / 2),
+    y: Math.floor((height - edge) / 2),
+    width: edge,
+    height: edge,
+  });
+  const png = square.resize({ width: 256, height: 256, quality: "best" }).toPNG();
+  const psbbnDir = path.join(oplRoot, "ART", "PSBBN");
+  const savedPath = path.join(psbbnDir, `${gameId}.png`);
+  await fs.mkdir(psbbnDir, { recursive: true });
+  await fs.writeFile(savedPath, png);
+  log.info(`Saved custom PSBBN artwork (${formatBytes(png.length)}) -> ${savedPath}`);
+
+  return {
+    success: true,
+    savedPath,
+    dataUrl: `data:image/png;base64,${png.toString("base64")}`,
+  };
 }
 
 export async function checkArtFilesExist(artDir: string, filenames: string[]) {

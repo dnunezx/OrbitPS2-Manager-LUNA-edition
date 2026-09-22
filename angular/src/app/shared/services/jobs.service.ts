@@ -1,3 +1,4 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, map } from 'rxjs';
 import { LogsService } from './logs.service';
@@ -300,8 +301,13 @@ export class JobsService {
     const artDir = `${dirPath}/ART`;
     const saveAsName = job.saveAsName;
     const localName = saveAsName || job.gameId;
-    const types = job.artTypes?.length ? job.artTypes : ['COV', 'ICO', 'SCR'];
-    const expectedFiles = types.map((t) => `${localName}_${t}.png`);
+    const requestedTypes = job.artTypes?.length ? job.artTypes : ['COV', 'ICO', 'PSBBN'];
+    const types = requestedTypes.filter(
+      (type) => type !== 'PSBBN' || (job.system ?? 'PS2') === 'PS2',
+    );
+    const localFileForType = (type: string) =>
+      type === 'PSBBN' ? `PSBBN/${job.gameId}.png` : `${localName}_${type}.png`;
+    const expectedFiles = types.map(localFileForType);
 
     this._logger.log(
       'jobsService',
@@ -324,9 +330,7 @@ export class JobsService {
 
     if (existing.length > 0) {
       if (job.skipExisting) {
-        const alreadySaved = types.filter((t) =>
-          existing.includes(`${localName}_${t}.png`),
-        );
+        const alreadySaved = types.filter((t) => existing.includes(localFileForType(t)));
         downloadTypes = types.filter((t) => !alreadySaved.includes(t));
         this._logger.log(
           'jobsService',

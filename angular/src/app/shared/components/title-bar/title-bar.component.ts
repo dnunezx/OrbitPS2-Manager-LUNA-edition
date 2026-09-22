@@ -1,3 +1,4 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 import {
   ChangeDetectorRef,
   Component,
@@ -24,10 +25,13 @@ export class TitleBarComponent implements OnInit {
   public canMaximize = false;
 
   ngOnInit() {
+    const windowAPI = window.windowAPI;
+    if (!windowAPI) return;
+
     void Promise.all([
-      window.windowAPI.platform(),
-      window.windowAPI.canWindowControls(),
-      window.windowAPI.isMaximized(),
+      windowAPI.platform(),
+      windowAPI.canWindowControls(),
+      windowAPI.isMaximized(),
     ]).then(([platform, { canMinimize, canMaximize }, maximized]) => {
       // macOS keeps its native frame/traffic lights; only draw our own
       // title bar where the main process created a frameless window.
@@ -38,13 +42,13 @@ export class TitleBarComponent implements OnInit {
       this._cdr.detectChanges();
     });
 
-    window.windowAPI.onMaximizedChange((isMaximized) => {
+    windowAPI.onMaximizedChange((isMaximized) => {
       this.maximized = isMaximized;
       this._cdr.detectChanges();
     });
 
     this._destroyRef.onDestroy(() =>
-      window.windowAPI.removeAllMaximizedChangeListeners(),
+      windowAPI.removeAllMaximizedChangeListeners(),
     );
   }
 

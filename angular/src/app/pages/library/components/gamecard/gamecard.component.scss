@@ -1,9 +1,13 @@
+/* Copyright (c) 2026 dnunezx — original LUNA Edition changes. */
 :host {
   display: block;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 18rem;
 }
 
 :host(.list-card) {
   max-width: none;
+  contain-intrinsic-size: auto 3.25rem;
 }
 
 .tile {

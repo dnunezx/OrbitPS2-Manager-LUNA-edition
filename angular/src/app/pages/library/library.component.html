@@ -1,3 +1,4 @@
+<!-- Copyright (c) 2026 dnunezx — original LUNA Edition changes. -->
 <div class="page flex h-full flex-col fade-in">
   <!-- ── Header ──────────────────────────────────────────────── -->
   <header
@@ -176,40 +177,42 @@
           <i-lucide name="folder-open" size="18"></i-lucide>Mount Directory
         </button>
       </div>
-    } @else if ((visibleGames$ | async)?.length === 0) {
-      <!-- Mounted but empty / no matches -->
-      <div class="empty-state">
-        <div class="empty-orb">
-          <i-lucide
-            [name]="searchTerm ? 'search-x' : 'gamepad-2'"
-            size="44"
-          ></i-lucide>
+    } @else if (visibleGames$ | async; as visibleGames) {
+      @if (visibleGames.length === 0) {
+        <!-- Mounted but empty / no matches -->
+        <div class="empty-state">
+          <div class="empty-orb">
+            <i-lucide
+              [name]="searchTerm ? 'search-x' : 'gamepad-2'"
+              size="44"
+            ></i-lucide>
+          </div>
+          <h2 class="font-display mt-5 text-xl tracking-wide">
+            {{ searchTerm ? "No matching games" : "No games here yet" }}
+          </h2>
+          <p class="mt-1 max-w-sm text-sm text-base-content/50">
+            {{
+              searchTerm
+                ? "Try a different search term or switch systems."
+                : "Import a game to get started, or switch to the other system."
+            }}
+          </p>
         </div>
-        <h2 class="font-display mt-5 text-xl tracking-wide">
-          {{ searchTerm ? "No matching games" : "No games here yet" }}
-        </h2>
-        <p class="mt-1 max-w-sm text-sm text-base-content/50">
-          {{
-            searchTerm
-              ? "Try a different search term or switch systems."
-              : "Import a game to get started, or switch to the other system."
-          }}
-        </p>
-      </div>
-    } @else {
-      <div
-        [class.library-grid]="viewMode === 'grid'"
-        [class.library-list]="viewMode === 'list'"
-      >
-        @for (item of visibleGames$ | async; track item.path || item.gameId) {
-          <app-gamecard
-            [game]="item"
-            [viewMode]="viewMode"
-            (viewDetails)="viewGameDetails($event)"
-            [class.list-card]="viewMode === 'list'"
-          ></app-gamecard>
-        }
-      </div>
+      } @else {
+        <div
+          [class.library-grid]="viewMode === 'grid'"
+          [class.library-list]="viewMode === 'list'"
+        >
+          @for (item of visibleGames; track item.path || item.gameId) {
+            <app-gamecard
+              [game]="item"
+              [viewMode]="viewMode"
+              (viewDetails)="viewGameDetails($event)"
+              [class.list-card]="viewMode === 'list'"
+            ></app-gamecard>
+          }
+        </div>
+      }
     }
   </div>
 </div>

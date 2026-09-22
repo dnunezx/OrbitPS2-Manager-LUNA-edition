@@ -1,3 +1,4 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 import * as fs from "fs/promises";
 import path from "path";
 import { createLogger } from "../logger";
@@ -121,6 +122,15 @@ export async function deleteGameAndRelatedFiles(
         }
       } else {
         addEntry("Artwork", true, "None found");
+      }
+
+      const psbbnPath = path.join(artDir, "PSBBN", `${gameId}.png`);
+      try {
+        await fs.unlink(psbbnPath);
+        addEntry("PSBBN artwork", true, rel(psbbnPath));
+      } catch (err: any) {
+        if (err?.code === "ENOENT") addEntry("PSBBN artwork", true, "Not present");
+        else addEntry("PSBBN artwork", false, rel(psbbnPath), err?.message || String(err));
       }
     } catch {
       addEntry("Artwork", true, "No artwork directory");

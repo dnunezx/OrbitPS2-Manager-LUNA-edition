@@ -1,3 +1,4 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 import { Component, computed, input, output, signal } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
 import { Game } from '@shared/types/game.type';
@@ -33,6 +34,8 @@ export class ArtworkWizardDialogComponent {
   readonly options = signal<ArtworkOption[]>([]);
   readonly selected = signal<Set<string>>(new Set());
   readonly skipExisting = signal(false);
+  readonly importingCustom = signal(false);
+  readonly importMessage = signal<string | null>(null);
 
   readonly selectedCount = computed(() => this.selected().size);
 
@@ -49,6 +52,10 @@ export class ArtworkWizardDialogComponent {
     return this.game().system === 'PS1' || this.isPs1Launcher ? 'PS1' : 'PS2';
   }
 
+  get supportsPsbbn(): boolean {
+    return this.system === 'PS2';
+  }
+
   private get localName(): string {
     return this.isPs1Launcher
       ? this.game().ps1LauncherBoot || this.game().gameId
@@ -61,33 +68,71 @@ export class ArtworkWizardDialogComponent {
 
     if (!result?.success) {
       this.errorMessage.set(result?.message || 'Failed to load available artwork.');
-      this.loading.set(false);
-      return;
-    }
-
-    if (result.data.length === 0) {
-      this.errorMessage.set(result.message || 'No artwork available for this game yet.');
-      this.loading.set(false);
-      return;
     }
 
     const dirPath = this._library.currentDirectoryValue;
     const localName = this.localName;
-    const expectedFiles = result.data.map((d) => `${localName}_${d.type}.png`);
+    const available = result?.data ?? [];
+    const localFileForType = (type: string) =>
+      type === 'PSBBN' ? `PSBBN/${g.gameId}.png` : `${localName}_${type}.png`;
+    const expectedFiles = available.map((d) => localFileForType(d.type));
     const existing = dirPath
       ? await window.libraryAPI.checkArtFilesExist(`${dirPath}/ART`, expectedFiles)
       : [];
 
     this.options.set(
-      result.data.map((d) => ({
+      available.map((d) => ({
         type: d.type,
         label: artTypeLabel(d.type),
         downloadUrl: d.downloadUrl,
-        alreadySaved: existing.includes(`${localName}_${d.type}.png`),
+        alreadySaved: existing.includes(localFileForType(d.type)),
       })),
     );
-    this.selected.set(new Set(result.data.map((d) => d.type)));
+    this.selected.set(new Set(available.map((d) => d.type)));
     this.loading.set(false);
+  }
+
+  async importCustomPsbbn(): Promise<void> {
+    const dirPath = this._library.currentDirectoryValue;
+    const g = this.game();
+    if (!dirPath || !g.gameId) return;
+
+    this.importingCustom.set(true);
+    this.importMessage.set(null);
+    try {
+      const result = await window.libraryAPI.importCustomPsbbnArt(dirPath, g.gameId);
+      if (result.cancelled) return;
+      if (!result.success) {
+        this.importMessage.set(result.message || 'Could not import the selected image.');
+        return;
+      }
+
+      const current = this.options();
+      const found = current.find((option) => option.type === 'PSBBN');
+      this.options.set(
+        found
+          ? current.map((option) =>
+              option.type === 'PSBBN'
+                ? { ...option, alreadySaved: true, downloadUrl: result.dataUrl || option.downloadUrl }
+                : option,
+            )
+          : [
+              ...current,
+              {
+                type: 'PSBBN',
+                label: artTypeLabel('PSBBN'),
+                downloadUrl: result.dataUrl || '',
+                alreadySaved: true,
+              },
+            ],
+      );
+      this.importMessage.set('Custom PSBBN jacket saved as a 256x256 PNG.');
+      await this._library.updateArtForGame(g.gameId);
+    } catch (error: any) {
+      this.importMessage.set(error?.message || 'Could not import the selected image.');
+    } finally {
+      this.importingCustom.set(false);
+    }
   }
 
   isSelected(type: string): boolean {

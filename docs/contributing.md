@@ -5,7 +5,7 @@ title: Contributing
 
 # 🤝 Contributing
 
-Contributions are welcome! Here's how you can help improve OrbitPS2 Manager:
+Contributions are welcome! Here's how you can help improve OrbitPS2 Manager - LUNA Edition:
 
 ## Ways to Contribute
 

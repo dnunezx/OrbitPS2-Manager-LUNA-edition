@@ -1,6 +1,6 @@
 {
-  "name": "angular",
-  "version": "0.0.0",
+  "name": "orbitps2-manager-luna-edition-renderer",
+  "version": "0.1.0",
   "author": "Luden02",
   "email": "github.com.overtime522@passmail.com",
   "scripts": {
@@ -12,7 +12,6 @@
   },
   "private": true,
   "dependencies": {
-    "@angular/animations": "^21.0.3",
     "@angular/common": "^21.0.3",
     "@angular/compiler": "^21.0.3",
     "@angular/core": "^21.0.3",

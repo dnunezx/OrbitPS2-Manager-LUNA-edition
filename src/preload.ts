@@ -1,3 +1,4 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 import { contextBridge, ipcRenderer } from "electron";
 
 function buildLibraryAPI() {
@@ -49,6 +50,8 @@ function buildLibraryAPI() {
       ipcRenderer.invoke("check-art-files-exist", artDir, filenames),
     listAvailableArt: (gameId: string, system?: "PS1" | "PS2") =>
       ipcRenderer.invoke("list-available-art", gameId, system),
+    importCustomPsbbnArt: (oplRoot: string, gameId: string) =>
+      ipcRenderer.invoke("import-custom-psbbn-art", oplRoot, gameId),
 
     // ── Rename ─────────────────────────────────────
     renameGamefile: (

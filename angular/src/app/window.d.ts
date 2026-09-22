@@ -1,3 +1,4 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 /** Electron preload (contextBridge) API exposed on `window.libraryAPI`. */
 declare interface Window {
   libraryAPI: {
@@ -141,6 +142,18 @@ declare interface Window {
     ) => Promise<{
       success: boolean;
       data: { type: string; fileName: string; downloadUrl: string }[];
+      message?: string;
+    }>;
+
+    /** Import, center-crop, and save a custom 256x256 LUNA PSBBN jacket. */
+    importCustomPsbbnArt: (
+      oplRoot: string,
+      gameId: string,
+    ) => Promise<{
+      success: boolean;
+      cancelled?: boolean;
+      savedPath?: string;
+      dataUrl?: string;
       message?: string;
     }>;
 

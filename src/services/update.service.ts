@@ -1,10 +1,13 @@
+// Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 import PackageInfo from "../../package.json";
 import { createLogger } from "../logger";
 
 const log = createLogger("update");
 
-const REPO = "Luden02/OrbitPS2-Manager";
-const RELEASES_URL = `https://api.github.com/repos/${REPO}/releases?per_page=10`;
+// Set this once OrbitPS2 Manager - LUNA Edition has a public releases repository. Keeping it empty
+// prevents the fork from offering unrelated upstream OrbitPS2 releases.
+const REPO = "";
+const RELEASES_URL = REPO ? `https://api.github.com/repos/${REPO}/releases?per_page=10` : "";
 
 export interface UpdateCheckResult {
   updateAvailable: boolean;
@@ -55,12 +58,15 @@ export function isNewerVersion(candidate: string, current: string): boolean {
 
 export async function checkForUpdates(): Promise<UpdateCheckResult> {
   const currentVersion = PackageInfo.version;
+  if (!RELEASES_URL) {
+    return { updateAvailable: false, currentVersion };
+  }
   try {
     log.verbose(`Checking for updates (current v${currentVersion}) at ${RELEASES_URL}`);
     const response = await fetch(RELEASES_URL, {
       headers: {
         Accept: "application/vnd.github+json",
-        "User-Agent": "OrbitPS2-Manager",
+        "User-Agent": "OrbitPS2-Manager-LUNA-Edition",
       },
     });
 
