@@ -14,6 +14,10 @@ function load(file, deps) {
   return exports;
 }
 const core = { Component: () => t => t, Injectable: () => t => t };
+const sanitizer = load('angular/src/app/shared/utils/sanitize-game-filename.ts', {});
+const identities = load('angular/src/app/shared/utils/ps1-artwork-identities.ts', {
+  '@shared/utils/sanitize-game-filename': sanitizer,
+});
 const { ImportComponent } = load('angular/src/app/pages/import/import.component.ts', {
   '@angular/core': core, 'lucide-angular': {}, '@angular/common': {},
   '../../shared/services/library.service': {}, '../../shared/services/jobs.service': {}, '../../shared/services/settings.service': {},
@@ -24,6 +28,7 @@ const { JobsService } = load('angular/src/app/shared/services/jobs.service.ts', 
 });
 const { LibraryService } = load('angular/src/app/shared/services/library.service.ts', {
   '@angular/core': core, rxjs, './logs.service': {}, './settings.service': {}, '../types/game.type': {},
+  '../utils/ps1-artwork-identities': identities, '../utils/sanitize-game-filename': sanitizer,
 });
 
 (async () => {
@@ -56,6 +61,10 @@ const { LibraryService } = load('angular/src/app/shared/services/library.service
   const library = Object.create(LibraryService.prototype); library.setCurrentAction = () => {};
   const game = await library.parseSingleFile({ name: 'Homebrew (Disc 2)', extension: '.VCD', path: 'X:\\POPS\\Homebrew (Disc 2).VCD', parentPath: 'X:\\POPS', stats: { size: 1234567 } });
   assert.equal(game.system, 'PS1'); assert.equal(game.gameId, ''); assert.equal(game.title, 'Homebrew (Disc 2)');
+  assert.equal(game.ps1ArtworkConvention, 'luna');
+  const commercial = { ...game, gameId: 'SCUS_944.02', canonicalTitle: 'Canonical title' };
+  assert.deepEqual(identities.ps1ArtworkIdentities(commercial), ['SCUS_944.02', 'Homebrew (Disc 2)']);
+  assert.equal(identities.ps1CanonicalRename(commercial), undefined, 'Artwork must preserve LUNA disc filenames');
   window.libraryAPI.validatePs1Vcd = async () => ({ success: false });
   assert.equal(await library.parseSingleFile({ name: 'Invalid', extension: '.VCD', path: 'X:\\POPS\\Invalid.VCD', parentPath: 'X:\\POPS', stats: { size: 1 } }), null);
   const invokes = [];

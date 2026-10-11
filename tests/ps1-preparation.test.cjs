@@ -27,6 +27,7 @@ const { publishFile, requireSpace } = require('../dist/src/utils/safe-install');
 const { getPsxcoreStatus, readPsxcoreRevision, verifyPsxcoreFile } = require('../dist/src/services/psxcore-status.service');
 const { getSettings, setSetting } = require('../dist/src/services/settings.service');
 const { deleteGameAndRelatedFiles } = require('../dist/src/services/delete.service');
+const { normalizeRiptOplPs1Storage } = require('../dist/src/services/rename.service');
 
 const sectorSize = 2352, headerSize = 0x100000;
 function raw(n, audio = false) {
@@ -260,6 +261,19 @@ async function importDisc(source, root, title, mode = 'psxcore', entry, art = fa
       const r = await importDisc(cue, drive, 'Delete Me'); assert(r.success, r.message);
       const deleted = await deleteGameAndRelatedFiles(r.vcdPath, path.join(drive, 'ART'), '', undefined); assert(deleted.success);
       for (const name of sentinels) assert.equal((await fs.readFile(path.join(drive, 'POPS', name))).toString(), 'existing: ' + name);
+    });
+    await test('upstream artwork normalization leaves PS1 card folders and bytes untouched', async () => {
+      const normalization = path.join(root, 'normalization'), artDir = path.join(normalization, 'ART');
+      await fs.mkdir(artDir, { recursive: true });
+      const vcd = await file(normalization, 'Old (Disc 2).VCD', await fs.readFile(single));
+      const cards = path.join(normalization, 'Old (Disc 2)'); await fs.mkdir(cards);
+      const card = await file(cards, 'card0', Buffer.from('existing save sentinel'));
+      await file(artDir, 'Old (Disc 2)_COV.png', Buffer.from('art sentinel'));
+      const r = await normalizeRiptOplPs1Storage({ kind: 'VCD', sourcePath: vcd, gameId: 'SCUS_944.02', canonicalTitle: 'Canonical', artDir });
+      assert(r.success, r.message); await validateVcd(r.newPath);
+      assert.equal((await fs.readFile(card)).toString(), 'existing save sentinel');
+      assert.deepEqual(await fs.readdir(cards), ['card0']); await absent(path.join(normalization, 'Canonical'));
+      assert.equal((await fs.readFile(path.join(artDir, 'Canonical_COV.png'))).toString(), 'art sentinel');
     });
     console.log(`PS1 preparation: ${checks} checks passed; ${nativeChecks} native PSXCore validator comparisons.`);
   } finally { await fs.rm(root, { recursive: true, force: true }); }

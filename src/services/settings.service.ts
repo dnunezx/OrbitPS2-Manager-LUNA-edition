@@ -18,6 +18,8 @@ export interface AppSettings {
   /** Last-picked PS1 launcher style on the Import screen. */
   ps1LauncherMode?: "popstarter" | "popsloader" | "psxcore";
   psxcoreFiles?: PsxcoreFiles;
+  /** Optional Ember locations per mounted library root. */
+  emberDirectories?: Record<string, string>;
   /** UI color theme. "system" follows the OS light/dark preference (OrbitPS2 only). */
   theme: "orbitps2" | "orbitps2-light" | "legacy" | "system";
 }

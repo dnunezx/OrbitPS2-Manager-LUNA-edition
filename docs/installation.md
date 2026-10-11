@@ -5,7 +5,9 @@ title: Installation
 
 # 💻 Installation
 
-Build OrbitPS2 Manager - LUNA Edition locally with the commands in the project README. Public release downloads will be added when the fork has a release repository.
+Grab stable LUNA Edition builds from the [Releases](https://github.com/dnunezx/OrbitPS2-Manager-LUNA-edition/releases) page.
+
+**Nightly** is a pre-release of this fork's main branch, published on each push. It installs beside the stable LUNA Edition app. Automatic update checks remain disabled in this fork.
 
 ## 🪟 Windows
 
