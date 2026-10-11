@@ -12,6 +12,8 @@ export type Game = {
   filename: string;
   size?: string;
   gameId: string;
+  /** Primary genre loaded from the HDD CFG metadata. */
+  genre?: string;
   region?: 'NTSC-U' | 'PAL' | 'NTSC-J' | 'UNKNOWN';
   cdType: string;
   title?: string;

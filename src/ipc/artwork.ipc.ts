@@ -1,5 +1,6 @@
 // Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 import { ipcMain } from "electron";
+import { downloadSaveIcon } from "../services/save-icons.service";
 import {
   downloadArtByGameId,
   checkArtFilesExist,
@@ -8,6 +9,9 @@ import {
 } from "../services/artwork.service";
 
 export function registerArtworkIpc(): void {
+  ipcMain.handle("download-save-icon", async (_event, oplRoot: string, gameId: string, title: string) =>
+    downloadSaveIcon(oplRoot, gameId, title)
+  );
   ipcMain.handle(
     "download-art-by-gameid",
     async (

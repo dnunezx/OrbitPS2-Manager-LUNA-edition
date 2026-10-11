@@ -11,6 +11,7 @@ import { registerVmcIpc } from "./vmc.ipc";
 import { registerZsoIpc } from "./zso.ipc";
 import { registerVcdIpc } from "./vcd.ipc";
 import { registerSettingsIpc } from "./settings.ipc";
+import { registerPsxcoreIpc } from "./psxcore.ipc";
 
 export function registerAllIpc(): void {
   registerWindowIpc();
@@ -26,4 +27,5 @@ export function registerAllIpc(): void {
   registerZsoIpc();
   registerVcdIpc();
   registerSettingsIpc();
+  registerPsxcoreIpc();
 }

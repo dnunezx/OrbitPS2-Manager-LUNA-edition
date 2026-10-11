@@ -1,5 +1,21 @@
 // Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 /** Electron preload (contextBridge) API exposed on `window.libraryAPI`. */
+declare interface LunaGenreResult {
+  gameId: string;
+  success: boolean;
+  genre: string;
+  changed?: boolean;
+  message?: string;
+}
+declare interface PsxcoreStatus {
+  success: boolean;
+  revision?: string;
+  bootstrap?: { valid: boolean; message: string; path?: string };
+  pops?: { valid: boolean; message: string; path?: string };
+  iop?: { valid: boolean; message: string; path?: string };
+  readyToLaunch?: false;
+  message: string;
+}
 declare interface Window {
   libraryAPI: {
     /** Open native directory picker. */
@@ -120,6 +136,10 @@ declare interface Window {
     /** Remove all PS1 delete progress listeners. */
     removeAllDeletePs1ProgressListeners: () => void;
 
+    /** Download an exact-title PS2 memory-card save icon bundle to ART/SAVEICON. */
+    downloadSaveIcon: (oplRoot: string, gameId: string, title: string) =>
+      Promise<{ success: boolean; message: string; savedPath?: string }>;
+
     /** Download cover/background art for a game by its ID. */
     downloadArtByGameId: (
       dirPath: string,
@@ -184,10 +204,9 @@ declare interface Window {
     }>;
 
     /**
-     * Import a PS1 game (cue + bin/iso → VCD + POPStarter config). If gameId/
-     * gameName are omitted, they're auto-detected from the disc; when no
-     * registered Sony game ID can be found (e.g. homebrew), the backend
-     * auto-assigns a non-conflicting HBRW_###.## id instead of failing.
+     * Prepare a CUE/BIN, selected archive disc, or validated existing VCD.
+     * POPStarter creates its launcher; POPSLoader and PSXCore install directly
+     * in POPS. PSXCore permits games without a commercial serial.
      */
     importPs1Game: (
       cueFilePath: string,
@@ -196,8 +215,13 @@ declare interface Window {
       downloadArtwork: boolean,
       gameId?: string,
       gameName?: string,
-      launcherMode?: 'popstarter' | 'popsloader',
+      launcherMode?: 'popstarter' | 'popsloader' | 'psxcore',
+      archiveEntry?: string,
     ) => Promise<any>;
+    inspectPs1Source: (file: string) => Promise<{ success: boolean; path?: string; discs?: string[]; message?: string }>;
+    getPsxcoreStatus: (root: string) => Promise<PsxcoreStatus>;
+    selectPsxcoreFile: (kind: 'revisionFile' | 'bootstrap' | 'pops' | 'iop') => Promise<{ canceled: boolean; filePaths: string[] }>;
+    validatePs1Vcd: (file: string) => Promise<{ success: boolean; sectors?: number; tracks?: number; bytes?: number; message?: string }>;
 
     /** Listen for PS1 import progress events. */
     onPs1ImportProgress: (
@@ -389,11 +413,15 @@ declare interface Window {
     readGameCfg: (
       oplRoot: string,
       gameId: string,
-    ) => Promise<{
-      success: boolean;
-      entries: Record<string, string>;
-      message?: string;
-    }>;
+    ) => Promise<{ success: boolean; entries: Record<string, string>; message?: string }>;
+
+    lookupGameMetadata: (gameId: string) => Promise<{ success: boolean; entries: Record<string, string>; message?: string }>;
+    fillGameMetadata: (oplRoot: string, gameIds: string[], system?: 'PS1' | 'PS2') => Promise<(LunaGenreResult & { entries: Record<string, string> })[]>;
+    patchGameCfg: (oplRoot: string, gameId: string, changes: Record<string, string | null>) => Promise<{ success: boolean; message?: string }>;
+    genreLabels: () => Promise<string[]>;
+    readGameGenres: (oplRoot: string, gameIds: string[]) => Promise<LunaGenreResult[]>;
+    assignGameGenres: (oplRoot: string, gameIds: string[], genre: string) => Promise<LunaGenreResult[]>;
+    fillGameGenres: (oplRoot: string, gameIds: string[], system?: 'PS1' | 'PS2') => Promise<LunaGenreResult[]>;
 
     /** Write entries to a game CFG file. */
     writeGameCfg: (
@@ -519,7 +547,8 @@ declare interface AppSettings {
   /** Whether to auto-reconnect to the last directory on startup. */
   autoReconnect: boolean;
   /** Last-picked PS1 launcher style on the Import screen. */
-  ps1LauncherMode?: 'popstarter' | 'popsloader';
+  ps1LauncherMode?: 'popstarter' | 'popsloader' | 'psxcore';
+  psxcoreFiles?: { revisionFile?: string; bootstrap?: string; pops?: string; iop?: string };
   /** UI color theme. "system" follows the OS light/dark preference (OrbitPS2 only). */
   theme: 'orbitps2' | 'orbitps2-light' | 'legacy' | 'system';
 }

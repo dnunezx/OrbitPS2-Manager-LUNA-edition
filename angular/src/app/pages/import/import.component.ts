@@ -6,6 +6,9 @@ import { SettingsService } from '../../shared/services/settings.service';
 import { AsyncPipe } from '@angular/common';
 
 interface StagedFile {
+  key: string;
+  selected: boolean;
+  archiveEntry?: string;
   path: string;
   fileName: string;
   gameId: string;
@@ -33,21 +36,39 @@ export class ImportComponent implements OnInit {
   /** PS2 DVD only: keep the original filename (new OPL convention). */
   keepOriginalName = false;
   elfPrefix = 'XX.';
-  /** PS1 only: POPStarter (APPS launcher) vs POPSLoader (no launcher, no GameID in filename). */
-  launcherMode: 'popstarter' | 'popsloader' = 'popstarter';
+  /** PS1 preparation target, persisted independently of the disc-type choice. */
+  launcherMode: 'popstarter' | 'popsloader' | 'psxcore' = 'popstarter';
   /** PS1 only: VCD art naming convention. */
   vcdArtNaming: 'gameId' | 'filename' = 'gameId';
+  psxcoreStatus?: PsxcoreStatus;
+  checkingPsxcore = false;
+
+  async refreshPsxcoreStatus() {
+    const root = this._libraryService.currentDirectoryValue;
+    if (!root) return;
+    this.checkingPsxcore = true;
+    try { this.psxcoreStatus = await window.libraryAPI.getPsxcoreStatus(root); }
+    catch (error: any) { this.psxcoreStatus = { success: false, message: error.message }; }
+    finally { this.checkingPsxcore = false; }
+  }
+
+  async selectPsxcoreFile(kind: 'revisionFile' | 'bootstrap' | 'pops' | 'iop') {
+    const result = await window.libraryAPI.selectPsxcoreFile(kind);
+    if (!result.canceled) await this.refreshPsxcoreStatus();
+  }
 
   async ngOnInit() {
     const settings = await this._settings.load();
     if (settings.ps1LauncherMode) {
       this.launcherMode = settings.ps1LauncherMode;
     }
+    if (this.launcherMode === 'psxcore') await this.refreshPsxcoreStatus();
   }
 
-  setLauncherMode(mode: 'popstarter' | 'popsloader') {
+  setLauncherMode(mode: 'popstarter' | 'popsloader' | 'psxcore') {
     this.launcherMode = mode;
     void this._settings.set('ps1LauncherMode', mode);
+    if (mode === 'psxcore') void this.refreshPsxcoreStatus();
   }
 
   staged: StagedFile[] = [];
@@ -73,7 +94,7 @@ export class ImportComponent implements OnInit {
    */
   get readyCount(): number {
     return this.staged.filter(
-      (f) => f.gameName && (this.isApp || this.isGamePsx || f.gameId)
+      (f) => f.selected && (!this.isGamePsx || !f.invalid) && f.gameName && (this.isApp || this.isGamePsx || f.gameId)
     ).length;
   }
 
@@ -100,10 +121,23 @@ export class ImportComponent implements OnInit {
         if (this.staged.some((f) => f.path === path)) {
           continue;
         }
-        const staged = this.isApp
-          ? this.stageApp(path)
-          : await this.detectFile(path);
-        this.staged = [...this.staged, staged];
+        if (this.isGamePsx) {
+          const info = await window.libraryAPI.inspectPs1Source(path);
+          if (!info.success) {
+            this.staged = [...this.staged, { ...this.stageApp(path), invalid: true, message: info.message }];
+          } else if (info.discs?.length) {
+            // Multi-disc archives are listed unselected for an explicit choice.
+            this.staged = [...this.staged, ...info.discs.map(entry => ({
+              key: path + '::' + entry, path, archiveEntry: entry, selected: info.discs!.length === 1,
+              fileName: entry, gameName: entry.split(/[\\/]/).pop()!.replace(/\.(cue|vcd)$/i, ''),
+              gameId: '', detected: false, invalid: false,
+              message: info.discs!.length > 1 ? 'Select this disc to include it in the import queue.' : undefined,
+            }))];
+          } else {
+            const staged = await this.detectFile(info.path!);
+            if (!this.staged.some(f => f.path === staged.path)) this.staged = [...this.staged, staged];
+          }
+        } else this.staged = [...this.staged, this.isApp ? this.stageApp(path) : await this.detectFile(path)];
       }
     } finally {
       this.scanning = false;
@@ -113,7 +147,7 @@ export class ImportComponent implements OnInit {
   private stageApp(path: string): StagedFile {
     const fileName = path.split(/[\\/]/).pop() || path;
     const title = fileName.replace(/\.elf$/i, '');
-    return { path, fileName, gameId: '', gameName: title, detected: false, invalid: false };
+    return { key: path, selected: true, path, fileName, gameId: '', gameName: title, detected: false, invalid: false };
   }
 
   private async detectFile(path: string): Promise<StagedFile> {
@@ -127,10 +161,11 @@ export class ImportComponent implements OnInit {
       const res: any = await detect;
       if (res?.success) {
         return {
+          key: path, selected: true,
           path,
           fileName,
           gameId: res.gameId || '',
-          gameName: res.gameName || '',
+          gameName: res.gameName || fileName.replace(/\.(cue|vcd)$/i, '').replace(/^[A-Z]{4}_\d{3}\.\d{2}\./i, ''),
           detected: true,
           invalid: false,
         };
@@ -145,17 +180,19 @@ export class ImportComponent implements OnInit {
     // stage them as importable under their filename instead of blocking them.
     if (this.isGamePsx) {
       return {
+        key: path, selected: true,
         path,
         fileName,
         gameId: '',
-        gameName: fileName.replace(/\.(cue|iso|bin|zip)$/i, ''),
+        gameName: fileName.replace(/\.(cue|iso|bin|zip|vcd)$/i, ''),
         detected: false,
         invalid: false,
-        message: message ? `Homebrew (no registered game ID): ${message}` : 'Homebrew — a game ID will be auto-assigned.',
+        message: 'No commercial serial detected. This disc can be installed using its title.',
       };
     }
 
     return {
+      key: path, selected: true,
       path,
       fileName,
       gameId: '',
@@ -166,8 +203,8 @@ export class ImportComponent implements OnInit {
     };
   }
 
-  removeStaged(path: string) {
-    this.staged = this.staged.filter((f) => f.path !== path);
+  removeStaged(key: string) {
+    this.staged = this.staged.filter((f) => f.key !== key);
   }
 
   clearStaged() {
@@ -176,7 +213,7 @@ export class ImportComponent implements OnInit {
 
   importAll() {
     const ready = this.staged.filter(
-      (f) => f.gameName && (this.isApp || this.isGamePsx || f.gameId)
+      (f) => f.selected && (!this.isGamePsx || !f.invalid) && f.gameName && (this.isApp || this.isGamePsx || f.gameId)
     );
     if (!ready.length) {
       return;
@@ -191,6 +228,7 @@ export class ImportComponent implements OnInit {
         downloadArtwork: this.downloadArtwork,
         elfPrefix: this.isGamePsx ? this.elfPrefix : undefined,
         launcherMode: this.isGamePsx ? this.launcherMode : undefined,
+        archiveEntry: f.archiveEntry,
         keepOriginalName: this.isGameDvd ? this.keepOriginalName : undefined,
       }))
     );

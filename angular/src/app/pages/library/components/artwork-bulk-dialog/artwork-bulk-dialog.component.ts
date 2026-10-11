@@ -27,7 +27,7 @@ export class ArtworkBulkDialogComponent {
   readonly knownTypes = KNOWN_ART_TYPES;
   readonly artTypeLabel = artTypeLabel;
 
-  readonly selected = signal<Set<string>>(new Set(['COV', 'ICO', 'PSBBN']));
+  readonly selected = signal<Set<string>>(new Set(['COV', 'ICO', 'LGO', 'PSBBN']));
   readonly skipExisting = signal(false);
   readonly selectedCount = computed(() => this.selected().size);
 

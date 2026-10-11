@@ -374,7 +374,7 @@ export async function openAskGameFiles(
   if (isGameCd) {
     filters.push({
       name: "CUE Files",
-      extensions: isGamePsx ? ["cue", "zip"] : ["cue"],
+      extensions: isGamePsx ? ["cue", "bin", "zip", "vcd"] : ["cue"],
     });
   }
   if (isGameDvd) {

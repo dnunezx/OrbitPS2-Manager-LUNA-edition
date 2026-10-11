@@ -103,6 +103,16 @@ export class LibraryService {
     return this.librarySubject.getValue();
   }
 
+  public applyGenres(results: LunaGenreResult[]): void {
+    const genres = new Map(results.filter((result) => result.success)
+      .map((result) => [result.gameId.toUpperCase(), result.genre]));
+    for (const game of this.currentLibraryValue) {
+      const genre = genres.get(game.gameId?.toUpperCase());
+      if (genre) game.genre = genre;
+    }
+    this.librarySubject.next([...this.currentLibraryValue]);
+  }
+
   /** Synchronous snapshot of the invalid files — useful for bulk actions. */
   public get currentInvalidFilesValue(): any[] {
     return this.invalidFilesSubject.getValue();
@@ -540,9 +550,15 @@ export class LibraryService {
       } else {
         this.setCurrentAction(`Resolving VCD ${file.name}…`);
         const resolved = await window.libraryAPI.tryDeterminePs1GameIdFromVcd(file.path);
-        if (!resolved?.success || !resolved.gameId) return null;
-        gameId = resolved.gameId;
-        title = resolved.gameName || file.name;
+        if (!resolved?.success || !resolved.gameId) {
+          const valid = await window.libraryAPI.validatePs1Vcd(file.path);
+          if (!valid.success) return null;
+          gameId = '';
+          title = file.name;
+        } else {
+          gameId = resolved.gameId;
+          title = file.name;
+        }
       }
     }
 
@@ -643,6 +659,15 @@ export class LibraryService {
     if (this.currentDirectory) {
       const artFiles = await this.parseArtFiles(this.currentDirectory);
       this.matchArtForGames(validGames, artFiles);
+      // Local reads only: mounting a library never requires the network.
+      const ids = validGames.filter((game) => game.system !== 'APPS' && game.gameId)
+        .map((game) => game.gameId);
+      const genres = await window.libraryAPI.readGameGenres(this.currentDirectory, ids);
+      const byId = new Map(genres.filter((result) => result.success)
+        .map((result) => [result.gameId, result.genre]));
+      for (const game of validGames) {
+        if (game.system !== 'APPS') game.genre = byId.get(game.gameId?.toUpperCase()) ?? 'Uncategorized';
+      }
     }
 
     this.setLoading(true);

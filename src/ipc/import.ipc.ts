@@ -2,8 +2,18 @@ import { ipcMain } from "electron";
 import { importPs2CdGame } from "../services/cd-import.service";
 import { importPs1Game } from "../services/ps1-import.service";
 import { importApp } from "../services/apps.service";
+import { inspectPs1Source } from "../services/ps1-source.service";
+import { validateVcd } from "../utils/psxcore-vcd";
 
 export function registerImportIpc(): void {
+  ipcMain.handle("inspect-ps1-source", async (_event, file: string) => {
+    try { return { success: true, ...await inspectPs1Source(file) }; }
+    catch (error: any) { return { success: false, message: error.message }; }
+  });
+  ipcMain.handle("validate-ps1-vcd", async (_event, file: string) => {
+    try { return { success: true, ...await validateVcd(file) }; }
+    catch (error: any) { return { success: false, message: error.message }; }
+  });
   ipcMain.handle(
     "import-ps2-cd-game",
     async (
@@ -37,7 +47,8 @@ export function registerImportIpc(): void {
       downloadArtwork: boolean,
       gameId?: string,
       gameName?: string,
-      launcherMode?: "popstarter" | "popsloader"
+      launcherMode?: "popstarter" | "popsloader" | "psxcore",
+      archiveEntry?: string
     ) => {
       return importPs1Game(
         cueFilePath,
@@ -49,7 +60,8 @@ export function registerImportIpc(): void {
         launcherMode,
         (percent, stage) => {
           event.sender.send("ps1-import-progress", { percent, stage });
-        }
+        },
+        archiveEntry
       );
     }
   );

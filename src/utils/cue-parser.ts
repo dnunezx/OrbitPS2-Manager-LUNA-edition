@@ -35,6 +35,9 @@ function parseMsf(msfStr: string): {
   frames: number;
 } {
   const parts = msfStr.split(":");
+  if (!/^\d{1,3}:\d{2}:\d{2}$/.test(msfStr) || Number(parts[1]) >= 60 || Number(parts[2]) >= 75) {
+    throw new Error(`Invalid CUE timestamp: ${msfStr}`);
+  }
   return {
     minutes: parseInt(parts[0], 10),
     seconds: parseInt(parts[1], 10),
@@ -70,13 +73,13 @@ export async function parseCueSheet(cueFilePath: string): Promise<CueSheet> {
   let currentTrack: CueTrack | null = null;
 
   for (const rawLine of lines) {
-    const line = rawLine.trim();
+    const line = rawLine.trim().replace(/^(FILE|TRACK|INDEX|PREGAP|POSTGAP)\b/i, x => x.toUpperCase());
     if (!line) continue;
 
     if (line.startsWith("FILE ")) {
       // FILE "filename.bin" BINARY
-      const match = line.match(/^FILE\s+"([^"]+)"\s+(\S+)/);
-      if (!match) continue;
+      const match = line.match(/^FILE\s+(?:"([^"]+)"|(\S+))\s+(\S+)$/);
+      if (!match) throw new Error(`Malformed CUE FILE: ${line}`);
 
       if (currentTrack && currentFile) {
         currentFile.tracks.push(currentTrack);
@@ -84,15 +87,15 @@ export async function parseCueSheet(cueFilePath: string): Promise<CueSheet> {
       }
 
       currentFile = {
-        filename: match[1],
-        filetype: match[2],
+        filename: match[1] || match[2],
+        filetype: match[3].toUpperCase(),
         tracks: [],
       };
       cueSheet.files.push(currentFile);
     } else if (line.startsWith("TRACK ")) {
       // TRACK 01 MODE2/2352
       const match = line.match(/^TRACK\s+(\d+)\s+(.+)/);
-      if (!match || !currentFile) continue;
+      if (!match || !currentFile) throw new Error(`Malformed CUE TRACK: ${line}`);
 
       if (currentTrack) {
         currentFile.tracks.push(currentTrack);
@@ -100,13 +103,13 @@ export async function parseCueSheet(cueFilePath: string): Promise<CueSheet> {
 
       currentTrack = {
         number: parseInt(match[1], 10),
-        type: match[2].trim(),
+        type: match[2].trim().toUpperCase(),
         indexes: [],
       };
     } else if (line.startsWith("INDEX ")) {
       // INDEX 01 00:00:00
       const match = line.match(/^INDEX\s+(\d+)\s+(\d+:\d+:\d+)/);
-      if (!match || !currentTrack) continue;
+      if (!match || !currentTrack) throw new Error(`Malformed CUE INDEX: ${line}`);
 
       const msf = parseMsf(match[2]);
       currentTrack.indexes.push({
@@ -115,11 +118,11 @@ export async function parseCueSheet(cueFilePath: string): Promise<CueSheet> {
       });
     } else if (line.startsWith("PREGAP ")) {
       const match = line.match(/^PREGAP\s+(\d+:\d+:\d+)/);
-      if (!match || !currentTrack) continue;
+      if (!match || !currentTrack || currentTrack.pregap) throw new Error(`Malformed CUE PREGAP: ${line}`);
       currentTrack.pregap = parseMsf(match[1]);
     } else if (line.startsWith("POSTGAP ")) {
       const match = line.match(/^POSTGAP\s+(\d+:\d+:\d+)/);
-      if (!match || !currentTrack) continue;
+      if (!match || !currentTrack || currentTrack.postgap) throw new Error(`Malformed CUE POSTGAP: ${line}`);
       currentTrack.postgap = parseMsf(match[1]);
     }
     // REM and other directives are ignored
@@ -131,6 +134,7 @@ export async function parseCueSheet(cueFilePath: string): Promise<CueSheet> {
   }
 
   const trackTotal = cueSheet.files.reduce((n, f) => n + f.tracks.length, 0);
+  if (!trackTotal || cueSheet.files.some(f => !f.tracks.length)) throw new Error("CUE contains no usable tracks.");
   log.verbose(
     `Parsed ${path.basename(cueFilePath)}: ${cueSheet.files.length} FILE(s), ${trackTotal} track(s)`
   );
@@ -147,4 +151,22 @@ export function getBlockSize(trackType: string): number {
 
 export function getCueDirectory(cueFilePath: string): string {
   return path.dirname(cueFilePath);
+}
+
+/** Resolve portable CUE separators, rejecting absolute paths and traversal. */
+export async function resolveCueBin(cuePath: string, filename: string): Promise<string> {
+  const relative = filename.replace(/\\/g, "/");
+  if (path.isAbsolute(relative) || /^[A-Za-z]:/.test(relative) || relative.split("/").some(p => !p || p === ".." || p === "."))
+    throw new Error(`CUE track must be inside its source folder: ${filename}`);
+  let result = path.dirname(cuePath);
+  for (const part of relative.split("/")) {
+    const entries = await fs.readdir(result);
+    const matches = entries.filter(n => n.toLowerCase() === part.toLowerCase());
+    if (matches.length !== 1) throw new Error(`Missing or ambiguous CUE track: ${filename}`);
+    result = path.join(result, matches[0]);
+    const stat = await fs.lstat(result);
+    if (stat.isSymbolicLink()) throw new Error(`CUE track cannot be a symbolic link: ${filename}`);
+  }
+  if (!(await fs.stat(result)).isFile()) throw new Error(`CUE track is not a file: ${filename}`);
+  return result;
 }

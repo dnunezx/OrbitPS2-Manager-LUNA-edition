@@ -135,6 +135,7 @@
                     class="meta-value stars"
                     [class.meta-placeholder]="!players"
                   >
+                    <span>{{ players || "—" }}</span>
                     @for (p of [1, 2, 3, 4]; track p) {
                       <i-lucide
                         name="user"

@@ -14,6 +14,7 @@ export type ImportJobType =
   | 'vcd-to-bin'
   | 'apps'
   | 'artwork'
+  | 'save-icon'
   | 'rename'
   | 'ps1-convert-popsloader'
   | 'ps1-convert-popstarter';
@@ -39,11 +40,13 @@ export interface ImportJob {
    * PS1 only: launcher style. "popstarter" (default) creates an APPS
    * launcher and names the VCD "<GameID>.<Title>.VCD"; "popsloader" skips
    * the launcher entirely and names the VCD just "<Title>.VCD".
+   * "psxcore" validates and installs directly in POPS with unique disc names.
    */
-  launcherMode?: 'popstarter' | 'popsloader';
+  launcherMode?: 'popstarter' | 'popsloader' | 'psxcore';
+  archiveEntry?: string;
   /** Artwork only: which art database to pull from (defaults to PS2). */
   system?: 'PS1' | 'PS2';
-  /** Artwork only: which art types to fetch (defaults to COV/ICO/SCR). */
+  /** Artwork only: which art types to fetch (defaults to COV/ICO/LGO/PSBBN). */
   artTypes?: string[];
   /** Artwork only: silently drop already-saved types instead of prompting to overwrite. */
   skipExisting?: boolean;
@@ -198,7 +201,7 @@ export class JobsService {
         this.patchJob(next.id, {
           status: 'success',
           percent: 100,
-          stage: 'Completed',
+          stage: next.type === 'ps1' && next.launcherMode === 'psxcore' ? 'Installed — console integration pending' : 'Completed',
           message: result?.message,
           finishedAt: Date.now(),
         });
@@ -206,7 +209,9 @@ export class JobsService {
         // Artwork only touches one game's images — patch it in place so the
         // library scroll position is preserved. Everything else changes the
         // file set on disk and needs a full re-scan.
-        if (next.type === 'artwork' && result?.artRefresh !== false) {
+        if (next.type === 'save-icon') {
+          // Save icons live outside the library's ordinary cover-art scan.
+        } else if (next.type === 'artwork' && result?.artRefresh !== false) {
           void this._library.updateArtForGame(next.gameId);
         } else {
           this._library.refreshGamesFiles();
@@ -278,6 +283,8 @@ export class JobsService {
         return this.runAppsJob(job, dirPath);
       case 'artwork':
         return this.runArtworkJob(job, dirPath);
+      case 'save-icon':
+        return this.runSaveIconJob(job, dirPath);
       case 'rename':
         return this.runRenameJob(job);
       case 'ps1-convert-popsloader':
@@ -295,13 +302,18 @@ export class JobsService {
     return window.libraryAPI.importApp(dirPath, job.filePath, job.gameName);
   }
 
+  private async runSaveIconJob(job: ImportJob, dirPath: string) {
+    this.patchJob(job.id, { stage: 'Matching and downloading save icon…', percent: 30 });
+    return window.libraryAPI.downloadSaveIcon(dirPath, job.gameId, job.gameName);
+  }
+
   private async runArtworkJob(job: ImportJob, dirPath: string) {
     this.patchJob(job.id, { stage: 'Checking existing artwork…', percent: 10 });
 
     const artDir = `${dirPath}/ART`;
     const saveAsName = job.saveAsName;
     const localName = saveAsName || job.gameId;
-    const requestedTypes = job.artTypes?.length ? job.artTypes : ['COV', 'ICO', 'PSBBN'];
+    const requestedTypes = job.artTypes?.length ? job.artTypes : ['COV', 'ICO', 'LGO', 'PSBBN'];
     const types = requestedTypes.filter(
       (type) => type !== 'PSBBN' || (job.system ?? 'PS2') === 'PS2',
     );
@@ -338,6 +350,9 @@ export class JobsService {
         );
 
         if (downloadTypes.length === 0) {
+          // Existing artwork must not prevent missing game metadata being filled.
+          const genres = await window.libraryAPI.fillGameMetadata(dirPath, [job.gameId], job.system ?? 'PS2');
+          this._library.applyGenres(genres);
           this._logger.log(
             'jobsService',
             `All selected artwork already exists for "${job.label}" — nothing to download.`,
@@ -401,6 +416,7 @@ export class JobsService {
       saveAsName,
       downloadTypes,
     );
+    if (result?.genres) this._library.applyGenres(result.genres);
 
     if (result?.data) {
       const saved = result.data.filter((r: any) => r.savedPath);
@@ -557,6 +573,7 @@ export class JobsService {
         job.gameId || undefined,
         job.gameName || undefined,
         job.launcherMode || 'popstarter',
+        job.archiveEntry,
       );
     } finally {
       window.libraryAPI.removeAllPs1ImportProgressListeners();
@@ -614,6 +631,11 @@ export class JobsService {
           job.gameId,
           'PS2',
         );
+      } else {
+        const genres = await window.libraryAPI.fillGameMetadata(dirPath, [job.gameId], 'PS2');
+        for (const result of genres) {
+          if (!result.success) this._logger.error('metadata', result.message ?? 'Metadata lookup failed');
+        }
       }
 
       return { success: true };

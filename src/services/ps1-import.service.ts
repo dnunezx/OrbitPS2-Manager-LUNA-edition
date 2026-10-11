@@ -2,9 +2,13 @@ import * as fs from "fs/promises";
 import path from "path";
 import { mergeMultiBin } from "../utils/binmerge";
 import { convertToVcd } from "../utils/cue2pops";
-import { parseCueSheet, getCueDirectory } from "../utils/cue-parser";
-import { extractDiscZip } from "../utils/zip-extract";
-import { tryDeterminePs1GameIdFromHex } from "./game-id-resolver.service";
+import { resolveCueBin } from "../utils/cue-parser";
+import { extractSelectedDiscZip } from "../utils/zip-extract";
+import { tryDeterminePs1GameIdFromHex, tryDeterminePs1GameIdFromVcd } from "./game-id-resolver.service";
+import { constants } from "fs";
+import { inspectCue, resolvePs1Source } from "./ps1-source.service";
+import { validateVcd } from "../utils/psxcore-vcd";
+import { requireSpace, assertAbsent, publishFile, uniqueVcdPath, ensureChildDirectory } from "../utils/safe-install";
 import { downloadArtByGameId } from "./artwork.service";
 import { sanitizeGameFilename } from "../utils/sanitize";
 import { describeFileAccessError } from "../utils/file-access-error";
@@ -76,205 +80,101 @@ export interface ImportPs1Result {
   vcdPath?: string;
   gameId?: string;
   gameName?: string;
+  readyToLaunch?: boolean;
 }
 
 export async function importPs1Game(
-  cueFilePath: string,
-  oplRoot: string,
-  elfPrefix: string,
-  downloadArtwork: boolean,
-  overrideGameId?: string,
-  overrideGameName?: string,
-  launcherMode: "popstarter" | "popsloader" = "popstarter",
-  onProgress?: (percent: number, stage: string) => void
+  source: string, oplRoot: string, elfPrefix: string, downloadArtwork: boolean,
+  overrideGameId?: string, overrideGameName?: string,
+  launcherMode: "popstarter" | "popsloader" | "psxcore" = "popstarter",
+  onProgress?: (percent: number, stage: string) => void, archiveEntry?: string
 ): Promise<ImportPs1Result> {
-  let zipTempDir: string | null = null;
+  let zipTempDir: string | undefined, workDir: string | undefined;
   try {
-    log.info(
-      `PS1 import started: ${cueFilePath} (ELF prefix "${elfPrefix}", launcher mode "${launcherMode}")`
-    );
-    const popsDir = path.join(oplRoot, "POPS");
-    const artDir = path.join(oplRoot, "ART");
-
-    // Ensure POPS directory exists
-    await fs.mkdir(popsDir, { recursive: true });
-    await fs.mkdir(artDir, { recursive: true });
-
-    if (onProgress) onProgress(0, "Parsing CUE sheet");
-
-    // Step 0: If a ZIP was picked, extract it and locate the CUE inside —
-    // everything below operates on the extracted CUE as if it had been
-    // picked directly.
-    let resolvedCueFilePath = cueFilePath;
-    if (path.extname(cueFilePath).toLowerCase() === ".zip") {
-      if (onProgress) onProgress(2, "Extracting ZIP archive");
-      log.verbose(`Extracting PS1 ZIP archive ${cueFilePath}`);
-      const extracted = await extractDiscZip(cueFilePath);
-      zipTempDir = extracted.tempDir;
-      if (!extracted.cuePath) {
-        return {
-          success: false,
-          message: "ZIP archive does not contain a .cue file alongside the .bin.",
-        };
-      }
-      resolvedCueFilePath = extracted.cuePath;
+    if (!["popstarter", "popsloader", "psxcore"].includes(launcherMode)) throw new Error("Unknown PS1 preparation mode.");
+    const popsDir = path.join(oplRoot, "POPS"), artDir = path.join(oplRoot, "ART");
+    await ensureChildDirectory(oplRoot, "POPS");
+    let resolved = await resolvePs1Source(source);
+    if (/\.zip$/i.test(resolved)) {
+      onProgress?.(2, "Extracting selected disc");
+      const extracted = await extractSelectedDiscZip(resolved, archiveEntry);
+      zipTempDir = extracted.tempDir; resolved = extracted.discPath;
     }
-
-    // Step 1: Check if multi-BIN and merge if needed
-    const cueSheet = await parseCueSheet(resolvedCueFilePath);
-    let binPath: string;
-    let cuePath: string;
-    let tempDir: string | null = null;
-
-    if (cueSheet.files.length > 1) {
-      if (onProgress) onProgress(5, "Merging multi-BIN files");
-      log.verbose(`Merging ${cueSheet.files.length} BIN files into one`);
-
-      // Create temp directory for merged output
-      tempDir = path.join(popsDir, `.tmp_merge_${Date.now()}`);
-      await fs.mkdir(tempDir, { recursive: true });
-
-      const mergeResult = await mergeMultiBin(
-        resolvedCueFilePath,
-        tempDir,
-        onProgress
-      );
-      binPath = mergeResult.mergedBinPath;
-      cuePath = mergeResult.mergedCuePath;
-    } else {
-      binPath = path.join(getCueDirectory(resolvedCueFilePath), cueSheet.files[0].filename);
-      cuePath = resolvedCueFilePath;
-    }
-
-    // Step 2: Resolve game ID + name (use overrides if provided, else detect;
-    // fall back to an auto-assigned homebrew ID if neither works, since
-    // VCD conversion itself has no dependency on a real Sony-registered ID).
-    if (onProgress) onProgress(30, "Detecting PS1 game ID");
-
-    let gameId = overrideGameId?.trim();
-    let gameName = overrideGameName?.trim();
-    if (!gameId || !gameName) {
-      const idResult = await tryDeterminePs1GameIdFromHex(binPath);
-      if (idResult.success && "gameId" in idResult) {
-        if (!gameId) gameId = idResult.gameId;
-        if (!gameName) gameName = idResult.gameName;
-      } else {
-        log.verbose(
-          `PS1 import: ${idResult.message || "could not determine game ID"} — treating as homebrew`
-        );
-      }
-    }
-
-    if (!gameId) {
-      gameId = await generateHomebrewGameId(popsDir);
-      log.info(`No registered PS1 game ID found — auto-assigned homebrew ID ${gameId}`);
-    }
-    if (!gameName) {
-      gameName = path.basename(resolvedCueFilePath, path.extname(resolvedCueFilePath));
-    }
-    log.verbose(`Resolved PS1 game ${gameId} (${gameName})`);
-
-    // Step 3: Convert BIN/CUE to VCD
-    if (onProgress) onProgress(35, "Converting to VCD format");
-
-    const sanitizedName = sanitizeGameFilename(gameName);
-    const vcdFilename =
-      launcherMode === "popsloader"
-        ? `${sanitizedName}.VCD`
-        : `${gameId}.${sanitizedName}.VCD`;
-    const vcdPath = path.join(popsDir, vcdFilename);
-    log.verbose(`Converting to VCD → POPS/${vcdFilename}`);
-
-    await convertToVcd(binPath, cuePath, vcdPath, (percent, stage) => {
-      if (onProgress) {
-        // Map the 0-100 range from convertToVcd to 35-85 of our overall progress
-        const mappedPercent = 35 + Math.round(percent * 0.5);
-        onProgress(mappedPercent, stage);
-      }
-    });
-
-    // Step 4: Clean up temp directory if we created one
-    if (tempDir) {
-      try {
-        await fs.rm(tempDir, { recursive: true, force: true });
-      } catch {
-        // Non-critical cleanup failure
-      }
-    }
-
-    // Step 5: Copy POPStarter ELF with XX. prefix (POPStarter mode only —
-    // POPSLoader reads VCDs directly out of POPS/ and needs no launcher app).
-    let elfFilename: string | undefined;
+    const isVcd = /\.vcd$/i.test(resolved);
+    const preflight = isVcd ? { bytes: (await validateVcd(resolved)).bytes, sourceBytes: 0, sheet: undefined } : await inspectCue(resolved);
+    await requireSpace(popsDir, preflight.bytes * 2 + (preflight.sheet && preflight.sheet.files.length > 1 ? preflight.sourceBytes : 0));
+    let gameId = overrideGameId?.trim().toUpperCase() || "";
+    if (gameId && !/^[A-Z]{4}_\d{3}\.\d{2}$/.test(gameId)) throw new Error("Game ID must use SLUS_123.45 format, or be left blank.");
+    onProgress?.(10, "Detecting PS1 game ID");
+    const id = isVcd ? await tryDeterminePs1GameIdFromVcd(resolved) : await tryDeterminePs1GameIdFromHex(resolved);
+    if (!gameId && id.success && "gameId" in id) gameId = id.gameId || "";
+    if (!gameId && launcherMode !== "psxcore") gameId = await generateHomebrewGameId(popsDir);
+    const sourceStem = path.basename(resolved, path.extname(resolved));
+    const sourceTitle = sourceStem.replace(/^[A-Z]{4}_\d{3}\.\d{2}\./i, "");
+    let gameName = overrideGameName?.trim() || (id.success && "gameName" in id ? id.gameName : "") || sourceTitle;
+    const identity = archiveEntry || sourceStem;
+    const disc = identity.match(/(?:disc|disk|cd)[ _.-]*(\d+)/i);
+    if (disc && !new RegExp('(?:disc|disk|cd)[ _.-]*' + disc[1] + '(?:\\D|$)', 'i').test(gameName)) gameName += ' (Disc ' + disc[1] + ')';
+    if (archiveEntry && !disc && path.dirname(archiveEntry) !== "." && gameName === sourceStem)
+      gameName += ' (' + path.basename(path.dirname(archiveEntry)) + ')';
+    const sanitizedName = sanitizeGameFilename(gameName).replace(/\x7f/g, "");
+    const stem = launcherMode === "popsloader" || !gameId ? sanitizedName : gameId + '.' + sanitizedName;
+    const vcdPath = launcherMode === "psxcore" ? await uniqueVcdPath(popsDir, stem) : path.join(popsDir, stem + '.VCD');
+    await assertAbsent(vcdPath);
+    let elf: string | null = null, appsGameDir: string | undefined, elfFilename: string | undefined;
     if (launcherMode === "popstarter") {
-      if (onProgress) onProgress(86, "Setting up Popstarter launcher");
-
-      const popstarterElf = await findPopstarterElf();
-      if (!popstarterElf) {
-        log.error("POPSTARTER.ELF not found in assets — cannot create PS1 launcher");
-        return {
-          success: false,
-          message:
-            "POPSTARTER.ELF not found in assets. Please place the Popstarter ELF file at assets/POPSTARTER.ELF.",
-        };
-      }
-
-      const vcdBasename = vcdFilename.replace(/\.VCD$/i, "");
-      elfFilename = elfPrefix
-        ? `${elfPrefix}${vcdBasename}.ELF`
-        : `${vcdBasename}.ELF`;
-      const appsFolderName = `POPS_${sanitizedName}`;
-      const appsGameDir = path.join(oplRoot, "APPS", appsFolderName);
-      await fs.mkdir(appsGameDir, { recursive: true });
-      await fs.copyFile(popstarterElf, path.join(appsGameDir, elfFilename));
-      await fs.writeFile(
-        path.join(appsGameDir, "title.cfg"),
-        `title=${gameName}\nboot=${elfFilename}\nGameID=${gameId}\n`,
-        "utf-8"
-      );
-      log.verbose(`Created POPStarter launcher APPS/${appsFolderName}/${elfFilename}`);
+      if (!["XX.", "SB.", ""].includes(elfPrefix)) throw new Error("Invalid POPStarter device prefix.");
+      elf = await findPopstarterElf();
+      if (!elf) throw new Error("POPSTARTER.ELF not found in assets.");
+      await ensureChildDirectory(oplRoot, "APPS");
+      appsGameDir = path.join(oplRoot, "APPS", 'POPS_' + sanitizedName);
+      await assertAbsent(appsGameDir);
+      elfFilename = elfPrefix + stem + '.ELF';
+    }
+    workDir = await fs.mkdtemp(path.join(popsDir, ".luna-import-"));
+    const tempVcd = path.join(workDir, "disc.VCD");
+    if (isVcd) {
+      onProgress?.(35, "Copying existing VCD");
+      const before = await fs.stat(resolved);
+      await fs.copyFile(resolved, tempVcd, constants.COPYFILE_EXCL);
+      const after = await fs.stat(resolved);
+      if (before.size !== after.size || before.mtimeMs !== after.mtimeMs) throw new Error("Source VCD changed during import.");
+      const staged = await fs.open(tempVcd, "r+");
+      try { await staged.sync(); } finally { await staged.close(); }
     } else {
-      if (onProgress) onProgress(86, "Skipping launcher (POPSLoader mode)");
-      log.verbose("POPSLoader mode — no APPS launcher created");
+      let bin: string, cue = resolved;
+      if (preflight.sheet!.files.length > 1) {
+        const merged = await mergeMultiBin(resolved, workDir, (p, stage) => onProgress?.(15 + Math.round(p * 0.2), stage));
+        bin = merged.mergedBinPath; cue = merged.mergedCuePath;
+      } else bin = await resolveCueBin(cue, preflight.sheet!.files[0].filename);
+      await convertToVcd(bin, cue, tempVcd, (p, stage) => onProgress?.(35 + Math.round(p * 0.5), stage));
     }
-
-    // Step 7: Download artwork
-    if (downloadArtwork) {
-      if (onProgress) onProgress(93, "Downloading artwork");
+    await validateVcd(tempVcd);
+    onProgress?.(86, "Installing validated VCD");
+    if (appsGameDir && elf && elfFilename) {
+      await fs.mkdir(appsGameDir);
       try {
-        // POPSLoader/RiptOPL match art to a game by its VCD filename (no
-        // GameID prefix), not by GameID — save it under that name instead
-        // of the POPStarter naming used below.
-        const artSaveName =
-          launcherMode === "popsloader" ? sanitizedName : elfFilename;
-        await downloadArtByGameId(artDir, gameId, "PS1", artSaveName, ["COV"]);
-      } catch {
-        // Art download failure is non-critical
-      }
+        await fs.copyFile(elf, path.join(appsGameDir, elfFilename), constants.COPYFILE_EXCL);
+        await fs.writeFile(path.join(appsGameDir, "title.cfg"), 'title=' + gameName.replace(/[\r\n]/g, ' ') + '\nboot=' + elfFilename + '\nGameID=' + gameId + '\n', { flag: "wx" });
+        await publishFile(tempVcd, vcdPath, validateVcd);
+      } catch (error) { await fs.rm(appsGameDir, { recursive: true, force: true }); throw error; }
+    } else await publishFile(tempVcd, vcdPath, validateVcd);
+    if (downloadArtwork && gameId) {
+      try {
+        await ensureChildDirectory(oplRoot, "ART");
+        const artName = launcherMode === "psxcore" ? gameId : launcherMode === "popsloader" ? sanitizedName : elfFilename;
+        await downloadArtByGameId(artDir, gameId, "PS1", artName, launcherMode === "psxcore" ? ["COV", "PSBBN"] : ["COV"], true);
+      } catch { /* Artwork availability does not invalidate the installed disc. */ }
     }
-
-    if (onProgress) onProgress(100, "Import complete");
-
-    log.info(`PS1 import complete: ${gameId} (${gameName}) → POPS/${vcdFilename}`);
-    return {
-      success: true,
-      vcdPath,
-      gameId,
-      gameName,
-    };
+    const message = launcherMode === "psxcore" ? (isVcd ? "Validated and installed" : "Converted and installed") + "; console launch requires LUNA discovery and PSXCore handoff integration." : "Import complete";
+    onProgress?.(100, message);
+    return { success: true, vcdPath, gameId, gameName, message,
+      ...(launcherMode === "psxcore" ? { readyToLaunch: false } : {}) };
   } catch (err: any) {
-    log.error(`PS1 import failed for ${cueFilePath}:`, err?.message || err);
-    return {
-      success: false,
-      message: describeFileAccessError(err),
-    };
+    log.error('PS1 import failed:', err?.message || err);
+    return { success: false, message: describeFileAccessError(err) };
   } finally {
-    if (zipTempDir) {
-      try {
-        await fs.rm(zipTempDir, { recursive: true, force: true });
-      } catch {
-        // Non-critical cleanup failure
-      }
-    }
+    for (const dir of [workDir, zipTempDir]) if (dir) await fs.rm(dir, { recursive: true, force: true })
+      .catch(error => log.warn(`Could not clean owned import staging ${dir}: ${error.message}`));
   }
 }
-

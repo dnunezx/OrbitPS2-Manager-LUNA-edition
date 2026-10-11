@@ -31,6 +31,8 @@ function buildLibraryAPI() {
       ipcRenderer.invoke("try-determine-ps1-gameid-from-vcd", filepath),
 
     // ── Artwork ────────────────────────────────────
+    downloadSaveIcon: (oplRoot: string, gameId: string, title: string) =>
+      ipcRenderer.invoke("download-save-icon", oplRoot, gameId, title),
     downloadArtByGameId: (
       dirPath: string,
       gameId: string,
@@ -187,6 +189,10 @@ function buildLibraryAPI() {
     },
 
     // ── Import ─────────────────────────────────────
+    inspectPs1Source: (file: string) => ipcRenderer.invoke("inspect-ps1-source", file),
+    getPsxcoreStatus: (root: string) => ipcRenderer.invoke("psxcore-status", root),
+    selectPsxcoreFile: (kind: "revisionFile" | "bootstrap" | "pops" | "iop") => ipcRenderer.invoke("psxcore-select-file", kind),
+    validatePs1Vcd: (file: string) => ipcRenderer.invoke("validate-ps1-vcd", file),
     importPs1Game: (
       cueFilePath: string,
       oplRoot: string,
@@ -194,7 +200,8 @@ function buildLibraryAPI() {
       downloadArtwork: boolean,
       gameId?: string,
       gameName?: string,
-      launcherMode?: "popstarter" | "popsloader"
+      launcherMode?: "popstarter" | "popsloader" | "psxcore",
+      archiveEntry?: string
     ) =>
       ipcRenderer.invoke(
         "import-ps1-game",
@@ -204,7 +211,8 @@ function buildLibraryAPI() {
         downloadArtwork,
         gameId,
         gameName,
-        launcherMode
+        launcherMode,
+        archiveEntry
       ),
     onPs1ImportProgress: (
       callback: (progress: { percent: number; stage: string }) => void
@@ -248,6 +256,13 @@ function buildLibraryAPI() {
       ipcRenderer.invoke("import-app", oplRoot, elfPath, title),
 
     // ── CFG ────────────────────────────────────────
+    lookupGameMetadata: (gameId: string) => ipcRenderer.invoke("lookup-game-metadata", gameId),
+    fillGameMetadata: (oplRoot: string, gameIds: string[], system: "PS1" | "PS2" = "PS2") => ipcRenderer.invoke("fill-game-metadata", oplRoot, gameIds, system),
+    patchGameCfg: (oplRoot: string, gameId: string, changes: Record<string, string | null>) => ipcRenderer.invoke("patch-game-cfg", oplRoot, gameId, changes),
+    genreLabels: () => ipcRenderer.invoke("genre-labels"),
+    readGameGenres: (oplRoot: string, gameIds: string[]) => ipcRenderer.invoke("read-game-genres", oplRoot, gameIds),
+    assignGameGenres: (oplRoot: string, gameIds: string[], genre: string) => ipcRenderer.invoke("assign-game-genres", oplRoot, gameIds, genre),
+    fillGameGenres: (oplRoot: string, gameIds: string[], system: "PS1" | "PS2" = "PS2") => ipcRenderer.invoke("fill-game-genres", oplRoot, gameIds, system),
     readGameCfg: (oplRoot: string, gameId: string) =>
       ipcRenderer.invoke("read-game-cfg", oplRoot, gameId),
     writeGameCfg: (

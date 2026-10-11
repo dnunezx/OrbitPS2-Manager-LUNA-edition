@@ -1,13 +1,15 @@
 import * as fs from "fs/promises";
 import * as fsSync from "fs";
 import path from "path";
+import { pipeline } from "stream/promises";
+import { Readable } from "stream";
 import {
   parseCueSheet,
   getBlockSize,
-  getCueDirectory,
   msfToSectors,
   sectorsToMsf,
   CueSheet,
+  resolveCueBin,
 } from "./cue-parser";
 import { createLogger, formatBytes } from "../logger";
 
@@ -25,12 +27,11 @@ export async function mergeMultiBin(
   onProgress?: (percent: number, stage: string) => void
 ): Promise<MergeResult> {
   const cueSheet = await parseCueSheet(cueFilePath);
-  const cueDir = getCueDirectory(cueFilePath);
 
   // Single-file CUE: no merge needed
   if (cueSheet.files.length <= 1) {
     log.verbose("Single-file CUE — no BIN merge needed");
-    const binPath = path.join(cueDir, cueSheet.files[0].filename);
+    const binPath = await resolveCueBin(cueFilePath, cueSheet.files[0].filename);
     return {
       mergedBinPath: binPath,
       mergedCuePath: cueFilePath,
@@ -47,56 +48,35 @@ export async function mergeMultiBin(
   const mergedBinPath = path.join(outputDir, `${baseName}.bin`);
   const mergedCuePath = path.join(outputDir, `${baseName}.cue`);
 
-  // Concatenate all BIN files
-  const writeStream = fsSync.createWriteStream(mergedBinPath);
-  let cumulativeOffset = 0;
-  const fileOffsets: number[] = [];
-
-  // Calculate total size for progress
-  let totalSize = 0;
+  // Preflight all source files and offsets before opening any output.
+  let cumulativeOffset = 0, totalSize = 0, writtenBytes = 0;
+  const fileOffsets: number[] = [], bins: string[] = [];
   for (const file of cueSheet.files) {
-    const binPath = path.join(cueDir, file.filename);
-    const stat = await fs.stat(binPath);
-    totalSize += stat.size;
+    const bin = await resolveCueBin(cueFilePath, file.filename);
+    const size = (await fs.stat(bin)).size;
+    if (!size || size % blockSize) throw new Error("BIN payload is not sector aligned.");
+    if (file.tracks.some(t => getBlockSize(t.type) !== blockSize)) throw new Error("Mixed sector sizes cannot be merged.");
+    fileOffsets.push(cumulativeOffset); cumulativeOffset += size / blockSize;
+    totalSize += size; bins.push(bin);
   }
-  log.verbose(`Total BIN payload to merge: ${formatBytes(totalSize)}`);
-
-  let writtenBytes = 0;
-
-  for (let i = 0; i < cueSheet.files.length; i++) {
-    const file = cueSheet.files[i];
-    const binPath = path.join(cueDir, file.filename);
-    fileOffsets.push(cumulativeOffset);
-
-    const stat = await fs.stat(binPath);
-    log.verbose(
-      `Appending BIN ${i + 1}/${cueSheet.files.length} ${file.filename} ` +
-        `(${formatBytes(stat.size)}) at sector offset ${cumulativeOffset}`
-    );
-    cumulativeOffset += Math.floor(stat.size / blockSize);
-
-    await new Promise<void>((resolve, reject) => {
-      const readStream = fsSync.createReadStream(binPath);
-      readStream.on("data", (chunk: Buffer) => {
+  async function* chunks() {
+    for (let i = 0; i < bins.length; i++) {
+      for await (const chunk of fsSync.createReadStream(bins[i])) {
         writtenBytes += chunk.length;
-        if (onProgress && totalSize > 0) {
-          onProgress(
-            Math.round((writtenBytes / totalSize) * 100),
-            `Merging BIN files (${i + 1}/${cueSheet.files.length})`
-          );
-        }
-      });
-      readStream.on("error", reject);
-      readStream.on("end", resolve);
-      readStream.pipe(writeStream, { end: false });
-    });
+        onProgress?.(Math.round(writtenBytes / totalSize * 100), "Merging BIN tracks");
+        yield chunk;
+      }
+    }
+    if (writtenBytes !== totalSize) throw new Error("BIN changed during merge.");
   }
-
-  writeStream.end();
-  await new Promise<void>((resolve, reject) => {
-    writeStream.on("finish", resolve);
-    writeStream.on("error", reject);
-  });
+  const output = await fs.open(mergedBinPath, "wx");
+  try {
+    await pipeline(Readable.from(chunks()), fsSync.createWriteStream(mergedBinPath, { fd: output.fd, autoClose: false }));
+    await output.sync();
+  } catch (error) {
+    await output.close().catch(() => {}); await fs.unlink(mergedBinPath).catch(() => {}); throw error;
+  }
+  await output.close();
 
   // Build merged CUE with recalculated offsets
   const mergedCueSheet: CueSheet = {
@@ -144,7 +124,8 @@ export async function mergeMultiBin(
     }
   }
 
-  await fs.writeFile(mergedCuePath, cueContent, "utf-8");
+  try { await fs.writeFile(mergedCuePath, cueContent, { encoding: "utf-8", flag: "wx" }); }
+  catch (error) { await fs.unlink(mergedBinPath).catch(() => {}); throw error; }
 
   log.info(
     `Merged ${cueSheet.files.length} BIN files → ${path.basename(mergedBinPath)} ` +

@@ -42,7 +42,7 @@
           >
             <i-lucide name="gamepad-2" size="22"></i-lucide>
             <span class="font-semibold">PS1 / POPS</span>
-            <span class="type-sub">.cue / .zip</span>
+            <span class="type-sub">.cue / .bin / .zip / .vcd</span>
           </button>
           <button
             class="type-card"
@@ -68,7 +68,9 @@
         @if (isGamePsx) {
         <div class="mt-4 flex gap-2 rounded-md border border-info/30 bg-info/10 p-3 text-sm">
           <i-lucide name="info" size="16" class="mt-0.5 shrink-0 text-info"></i-lucide>
-          @if (launcherMode === 'popsloader') {
+          @if (launcherMode === 'psxcore') {
+          <span>Convert and validate PS1 discs for LUNA / PSXCore, then install them directly in /POPS. Console launch remains dependent on LUNA discovery and PSXCore handoff integration.</span>
+          } @else if (launcherMode === 'popsloader') {
           <span
             >PS1 import converts BIN/CUE to VCD format, detects the game ID,
             and saves it as "&lt;Title&gt;.VCD" directly in the POPS folder —
@@ -77,8 +79,8 @@
           } @else {
           <span
             >PS1 import converts BIN/CUE to VCD format, detects the game ID,
-            places it in the VCD directory, and creates the
-            XX.GameName.ELF Popstarter launcher inside the POPS folder.</span
+            places it in the POPS directory, and creates the
+            POPStarter launcher in APPS/POPS_&lt;Title&gt;.</span
           >
           }
         </div>
@@ -100,8 +102,11 @@
             class="toggle toggle-primary"
             (change)="downloadArtwork = $any($event.target).checked"
           />
-          <span class="text-sm">Download artwork after import</span>
+          <span class="text-sm">Download artwork after import (includes game logo)</span>
         </label>
+        @if (!isGamePsx) {
+        <p class="mt-2 text-xs text-base-content/60">Missing PS2 game metadata is fetched automatically. Existing CFG values are kept.</p>
+        }
         @if (isGameDvd) {
         <label class="mt-3 flex cursor-pointer items-start gap-3">
           <input
@@ -130,6 +135,13 @@
         <div class="mt-5 border-t border-base-content/10 pt-4">
           <span class="text-sm font-semibold">PS1 launcher style:</span>
           <div class="mt-2 flex flex-col gap-2">
+            <label class="flex cursor-pointer items-start gap-2">
+              <input type="radio" name="radio-launchermode" class="radio radio-primary radio-sm mt-0.5"
+                [checked]="launcherMode === 'psxcore'" (change)="setLauncherMode('psxcore')" />
+              <span class="leading-tight"><span class="text-sm">LUNA / PSXCore</span>
+                <span class="block text-[0.68rem] text-base-content/55">Validated VCDs in /POPS with collision-safe title and disc names. No per-game launcher.</span>
+              </span>
+            </label>
             <label class="flex cursor-pointer items-start gap-2">
               <input
                 type="radio"
@@ -198,6 +210,26 @@
       </section>
 
       <!-- Step 3 — select files & review -->
+      @if (isGamePsx && launcherMode === 'psxcore') {
+      <section class="glass rounded-box p-5">
+        <h2 class="font-display text-sm font-semibold">PSXCore setup / status</h2>
+        <p class="mt-2 text-xs text-base-content/60">Prerequisite checks are read-only and do not block game preparation. Runtime files are supplied separately. Saves and cards are managed on the console.</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button class="btn btn-sm" (click)="selectPsxcoreFile('revisionFile')" [disabled]="checkingPsxcore">Select build revision…</button>
+          <button class="btn btn-sm" (click)="selectPsxcoreFile('bootstrap')" [disabled]="checkingPsxcore">Select PSXCore bootstrap…</button>
+          <button class="btn btn-sm" (click)="selectPsxcoreFile('pops')" [disabled]="checkingPsxcore">Select POPS.ELF…</button>
+          <button class="btn btn-sm" (click)="selectPsxcoreFile('iop')" [disabled]="checkingPsxcore">Select IOPRP252.IMG…</button>
+          <button class="btn btn-sm btn-ghost" (click)="refreshPsxcoreStatus()" [disabled]="checkingPsxcore">Check status</button>
+        </div>
+        @if (psxcoreStatus; as status) {
+          <p class="mt-3 text-xs">{{ status.revision }}</p>
+          @if (status.bootstrap; as item) { <p class="mt-2 text-xs" [class.text-success]="item.valid">Bootstrap: {{ item.message }}</p> }
+          @if (status.pops; as item) { <p class="mt-2 text-xs" [class.text-success]="item.valid">POPS.ELF: {{ item.message }}</p> }
+          @if (status.iop; as item) { <p class="mt-2 text-xs" [class.text-success]="item.valid">IOPRP252.IMG: {{ item.message }}</p> }
+          <p class="mt-3 text-xs text-warning">{{ status.message }}</p>
+        }
+      </section>
+      }
       <section class="glass rounded-box p-5">
         <div class="mb-3 flex items-center justify-between gap-2">
           <div class="flex items-center gap-2">
@@ -213,10 +245,10 @@
 
         <p class="mb-3 text-sm text-base-content/55">
           Pick the
-          {{ isApp ? ".elf file(s)" : isGamePsx ? ".cue or .zip file(s)" : isGameCd ? ".cue file(s)" : ".iso / .zso file(s)" }}
+          {{ isApp ? ".elf file(s)" : isGamePsx ? ".cue, .bin, .zip or .vcd file(s)" : isGameCd ? ".cue file(s)" : ".iso / .zso file(s)" }}
           to import. You can select multiple at once.
           @if (isGamePsx) {
-          <span class="block text-base-content/40">A .zip must contain the .cue alongside its .bin file(s).</span>
+          <span class="block text-base-content/40">BIN tracks need a matching CUE. Archives may contain CUE/BIN discs or VCDs; select the discs you want below.</span>
           }
         </p>
 
@@ -230,9 +262,13 @@
 
         @if (staged.length) {
         <div class="mt-4 flex flex-col gap-2">
-          @for (file of staged; track file.path) {
+          @for (file of staged; track file.key) {
           <div class="rounded-md border border-base-content/10 bg-base-100/40 p-3">
             <div class="flex items-center gap-2">
+              @if (file.archiveEntry) {
+              <input type="checkbox" class="checkbox checkbox-sm" [checked]="file.selected"
+                (change)="file.selected = $any($event.target).checked" [attr.aria-label]="'Select ' + file.fileName" />
+              }
               <i-lucide
                 [name]="file.invalid ? 'triangle-alert' : 'file-check'"
                 size="15"
@@ -244,7 +280,7 @@
               }}</span>
               <button
                 class="btn btn-ghost btn-xs btn-square ml-auto"
-                (click)="removeStaged(file.path)"
+                (click)="removeStaged(file.key)"
               >
                 <i-lucide name="trash-2" size="14"></i-lucide>
               </button>

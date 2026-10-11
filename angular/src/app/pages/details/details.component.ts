@@ -2,7 +2,7 @@ import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { LibraryService } from '@shared/services/library.service';
-import { CfgService, CFG_KEY_NAME } from '@shared/services/cfg.service';
+import { CfgService, CFG_KEY_NAME, cfgMetadataValue } from '@shared/services/cfg.service';
 import { TitleCfgService } from '@shared/services/title-cfg.service';
 import { Game, gameArt } from '@shared/types/game.type';
 
@@ -133,13 +133,13 @@ export class DetailsComponent {
     if (isDiscGame && game.gameId) {
       this._cfg.getGameCfg(game.gameId).then((cfg) => {
         this.displayTitle = cfg[CFG_KEY_NAME] || '';
-        this.developer = cfg['Developer'] || '';
-        this.genre = cfg['Genre'] || '';
-        this.release = cfg['Release'] || '';
-        this.description = cfg['Description'] || '';
+        this.developer = cfgMetadataValue(cfg, 'Developer');
+        this.genre = cfgMetadataValue(cfg, 'Genre');
+        this.release = cfgMetadataValue(cfg, 'Release');
+        this.description = cfgMetadataValue(cfg, 'Description');
         this.ratingValue = this.parseRating(cfg['RatingText'] || cfg['Rating'] || '');
         this._formatParentalLabel(cfg['Parental'] || '', cfg['ParentalText'] || '');
-        this.players = cfg['PlayersText'] || cfg['Players'] || '';
+        this.players = cfgMetadataValue(cfg, 'PlayersText');
         this._applyFallbackTitle();
         this.loading = false;
         this._cdr.detectChanges();
@@ -264,9 +264,8 @@ export class DetailsComponent {
    */
   get playersCount(): number {
     if (!this.players) return 0;
-    const m = this.players.match(/(\d+)/);
-    const n = m ? parseInt(m[1], 10) : 0;
-    return Math.min(Math.max(n, 1), 4);
+    const counts = this.players.match(/\d+/g)?.map(Number) ?? [];
+    return counts.length ? Math.min(Math.max(...counts), 4) : 0;
   }
 
   /**

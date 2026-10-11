@@ -52,7 +52,7 @@ export interface ArtworkPreset {
 export const ARTWORK_PRESETS: ArtworkPreset[] = [
   { id: 'all', label: 'All Available', types: null },
   { id: 'opl', label: 'OpenPS2Loader', types: ['COV', 'ICO'] },
-  { id: 'luna', label: 'LUNA PSBBN', types: ['COV', 'ICO', 'PSBBN'] },
+  { id: 'luna', label: 'LUNA PSBBN', types: ['COV', 'ICO', 'LGO', 'PSBBN'] },
   { id: 'riptopl', label: 'RiptOPL', types: ['COV', 'ICO', 'COV3'] },
   { id: 'minimal', label: 'Icon Only', types: ['ICO'] },
 ];

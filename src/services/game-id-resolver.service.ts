@@ -2,6 +2,7 @@ import * as fs from "fs/promises";
 import path from "path";
 import { getCachedGameId, setCachedGameId } from "./iso-cache.service";
 import { createLogger, formatBytes } from "../logger";
+import { resolveCueBin } from "../utils/cue-parser";
 import { describeFileAccessError } from "../utils/file-access-error";
 import {
   PS1_GAME_ID_REGEX,
@@ -364,7 +365,7 @@ export async function tryDeterminePs1GameIdFromHex(filepath: string) {
             message: "CUE sheet does not reference any BIN files.",
           };
         }
-        scanPath = path.join(getCueDirectory(scanPath), firstFile);
+        scanPath = await resolveCueBin(scanPath, firstFile);
         log.verbose(`PS1 hex scan: resolved CUE to first BIN ${firstFile}`);
       } catch (err: any) {
         log.error(`PS1 hex scan: failed to parse CUE ${scanPath}:`, err?.message || err);

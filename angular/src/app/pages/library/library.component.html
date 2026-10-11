@@ -94,6 +94,11 @@
             }
             @if (isActive('PS2')) {
               <li>
+                <a (click)="downloadAllSaveIcons()">
+                  <i-lucide name="image-down" size="16"></i-lucide>Download PS2 save icons
+                </a>
+              </li>
+              <li>
                 <a (click)="convertAllToZso()">
                   <i-lucide name="file-archive" size="16"></i-lucide>Convert all
                   PS2 ISOs to ZSO

@@ -2,6 +2,7 @@ import { app } from "electron";
 import fs from "fs";
 import path from "path";
 import { createLogger } from "../logger";
+import type { PsxcoreFiles } from "./psxcore-status.service";
 
 const log = createLogger("settings");
 
@@ -15,7 +16,8 @@ export interface AppSettings {
   /** Re-mount the last directory automatically on launch. */
   autoReconnect: boolean;
   /** Last-picked PS1 launcher style on the Import screen. */
-  ps1LauncherMode?: "popstarter" | "popsloader";
+  ps1LauncherMode?: "popstarter" | "popsloader" | "psxcore";
+  psxcoreFiles?: PsxcoreFiles;
   /** UI color theme. "system" follows the OS light/dark preference (OrbitPS2 only). */
   theme: "orbitps2" | "orbitps2-light" | "legacy" | "system";
 }
@@ -35,6 +37,7 @@ export function getSettings(): AppSettings {
   try {
     const raw = fs.readFileSync(settingsFilePath(), "utf-8");
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
+    if (parsed.ps1LauncherMode && !["popstarter", "popsloader", "psxcore"].includes(parsed.ps1LauncherMode)) delete parsed.ps1LauncherMode;
     // Merge over defaults so newly-added settings have sane values.
     return { ...DEFAULT_SETTINGS, ...parsed };
   } catch {

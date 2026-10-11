@@ -3,6 +3,7 @@ import * as fs from "fs/promises";
 import * as os from "os";
 import path from "path";
 import { createLogger } from "../logger";
+import { requireSpace } from "./safe-install";
 
 const log = createLogger("zip-extract");
 
@@ -10,6 +11,36 @@ export interface ExtractedDiscZip {
   tempDir: string;
   cuePath: string | null;
   binPath: string | null;
+}
+
+export function listZipDiscs(zipPath: string): string[] {
+  const zip = new AdmZip(zipPath);
+  const entries = zip.getEntries();
+  const names = new Set<string>();
+  for (const e of entries) {
+    const n = e.entryName.replace(/\\/g, "/");
+    if (n.startsWith("/") || /[:\u0000-\u001f\u007f]/.test(n) || n.split("/").includes("..") ||
+        (e.header.attr >>> 16 & 0xf000) === 0xa000) throw new Error("ZIP contains unsafe paths or symbolic links.");
+    if (names.has(n.toLowerCase())) throw new Error("ZIP contains ambiguous duplicate paths.");
+    names.add(n.toLowerCase());
+  }
+  return entries.filter(e => !e.isDirectory && !e.entryName.replace(/\\/g, "/").split("/").includes("__MACOSX") &&
+    /\.(cue|vcd)$/i.test(e.entryName)).map(e => e.entryName).sort();
+}
+
+export async function extractSelectedDiscZip(zipPath: string, selected?: string): Promise<{ tempDir: string; discPath: string }> {
+  const discs = listZipDiscs(zipPath);
+  if (!discs.length) throw new Error("ZIP needs CUE + referenced BIN tracks or a valid VCD. A BIN alone lacks track information.");
+  if (!selected && discs.length > 1) throw new Error("Archive contains multiple discs. Select a disc before importing.");
+  const name = selected || discs[0];
+  if (!discs.includes(name)) throw new Error("Selected disc is no longer present in the archive.");
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "luna-ps1-zip-"));
+  try {
+    const zip = new AdmZip(zipPath);
+    await requireSpace(tempDir, zip.getEntries().reduce((n, e) => n + e.header.size, 0));
+    zip.extractAllTo(tempDir, false);
+    return { tempDir, discPath: path.join(tempDir, name.replace(/\\/g, "/")) };
+  } catch (error) { await fs.rm(tempDir, { recursive: true, force: true }); throw error; }
 }
 
 async function findFirstByExt(dir: string, ext: string): Promise<string | null> {
@@ -47,10 +78,13 @@ export async function extractDiscZip(zipFilePath: string): Promise<ExtractedDisc
   );
   await fs.mkdir(tempDir, { recursive: true });
 
+  try {
   log.verbose(`Extracting ${path.basename(zipFilePath)} → ${tempDir}`);
+  const discs = listZipDiscs(zipFilePath);
+  if (discs.length > 1) throw new Error("Archive contains multiple discs. Select a disc on the Import screen.");
   const zip = new AdmZip(zipFilePath);
-  zip.extractAllTo(tempDir, true);
-
+  await requireSpace(tempDir, zip.getEntries().reduce((n, e) => n + e.header.size, 0));
+  zip.extractAllTo(tempDir, false);
   const cuePath = await findFirstByExt(tempDir, ".cue");
   const binPath = await findFirstByExt(tempDir, ".bin");
   log.verbose(
@@ -58,6 +92,10 @@ export async function extractDiscZip(zipFilePath: string): Promise<ExtractedDisc
   );
 
   return { tempDir, cuePath, binPath };
+  } catch (error) {
+    await fs.rm(tempDir, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 export async function cleanupExtractedZip(tempDir: string): Promise<void> {
