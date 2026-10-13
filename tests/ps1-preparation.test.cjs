@@ -13,6 +13,7 @@ const originalLoad = Module._load;
 Module._load = function(name, parent, main) {
   if (name === 'electron') return { app: { getAppPath: () => appRoot, getPath: () => appRoot } };
   if (name === './artwork.service') return { downloadArtByGameId: async (...args) => artworkCalls.push(args) };
+  if (name === './game-metadata.service') return { fillGameMetadata: async () => [] };
   return originalLoad.call(this, name, parent, main);
 };
 const { convertToVcd, convertVcdToBin } = require('../dist/src/utils/cue2pops');

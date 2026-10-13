@@ -425,6 +425,14 @@ declare interface Window {
       title?: string;
       boot?: string;
       gameId?: string;
+      developer?: string;
+      release?: string;
+      ratingText?: string;
+      rating?: string;
+      description?: string;
+      parentalText?: string;
+      parental?: string;
+      playersText?: string;
       message?: string;
     }>;
     /** Read a game CFG file (`CFG/<gameId>.cfg`). */
@@ -433,6 +441,8 @@ declare interface Window {
       gameId: string,
     ) => Promise<{ success: boolean; entries: Record<string, string>; message?: string }>;
 
+    lookupGameMetadata: (gameId: string) => Promise<{ success: boolean; entries: Record<string, string>; message?: string }>;
+    fillGameMetadata: (oplRoot: string, gameIds: string[], system?: 'PS1' | 'PS2') => Promise<{ gameId: string; success: boolean; entries: Record<string, string>; changed?: boolean; message?: string }[]>;
     patchGameCfg: (oplRoot: string, gameId: string, changes: Record<string, string | null>) => Promise<{ success: boolean; message?: string }>;
 
     /** Write entries to a game CFG file. */

@@ -267,6 +267,8 @@ function buildLibraryAPI() {
       ipcRenderer.invoke("import-app", oplRoot, elfPath, title),
 
     // ── CFG ────────────────────────────────────────
+    lookupGameMetadata: (gameId: string) => ipcRenderer.invoke("lookup-game-metadata", gameId),
+    fillGameMetadata: (oplRoot: string, gameIds: string[], system: "PS1" | "PS2" = "PS2") => ipcRenderer.invoke("fill-game-metadata", oplRoot, gameIds, system),
     patchGameCfg: (oplRoot: string, gameId: string, changes: Record<string, string | null>) => ipcRenderer.invoke("patch-game-cfg", oplRoot, gameId, changes),
     readGameCfg: (oplRoot: string, gameId: string) =>
       ipcRenderer.invoke("read-game-cfg", oplRoot, gameId),

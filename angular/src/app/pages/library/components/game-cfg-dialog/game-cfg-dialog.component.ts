@@ -9,6 +9,8 @@ import {
   CFG_KEY_VMC0,
   CFG_KEY_VMC1,
   GameCfg,
+  CFG_METADATA_FIELDS,
+  cfgMetadataValue,
 } from '@shared/services/cfg.service';
 import { VmcInfo, VmcService } from '@shared/services/vmc.service';
 
@@ -38,14 +40,29 @@ export class GameCfgDialogComponent {
   slot1Cards: VmcInfo[] = [];
   loading = signal(true);
   saving = false;
+  fetching = false;
   error = '';
+  metadataMessage = '';
   readFailed = false;
+  readonly metadataFields = CFG_METADATA_FIELDS;
+  metadata: GameCfg = {};
+  private initialMetadata: GameCfg = {};
+
+  get supportsMetadata(): boolean {
+    return !this.game().isPs1Launcher && this.game().system !== 'APPS';
+  }
+
+  get canFetchMetadata(): boolean {
+    return this.supportsMetadata && (this.game().system ?? 'PS2') === 'PS2';
+  }
 
   private readonly knownKeys = [
     CFG_KEY_NAME,
     CFG_KEY_COMPAT,
     CFG_KEY_VMC0,
     CFG_KEY_VMC1,
+    ...CFG_METADATA_FIELDS.map((field) => field.key),
+    'Players',
   ];
 
   constructor(cfg: CfgService, vmc: VmcService, private readonly cdr: ChangeDetectorRef) {
@@ -59,6 +76,8 @@ export class GameCfgDialogComponent {
       this.entries = await this._cfg.getGameCfg(g.gameId);
       this.title = this.entries[CFG_KEY_NAME] ?? g.title ?? '';
       this.initialTitle = this.title;
+      for (const field of this.metadataFields) this.metadata[field.key] = cfgMetadataValue(this.entries, field.key);
+      this.initialMetadata = { ...this.metadata };
 
       if (g.isPs1Launcher) {
         const vmcSub = g.ps1VmcSub ?? '';
@@ -116,12 +135,55 @@ export class GameCfgDialogComponent {
   }
 
   get hasChanges(): boolean {
-    if (this.readFailed) return false;
+    if (this.readFailed || this.fetching) return false;
     if (this.game().isPs1Launcher) {
       const trimmed = this.title.trim();
       return trimmed !== '' && trimmed !== this.initialTitle;
     }
     return true;
+  }
+
+  async fillMissingMetadata(): Promise<void> {
+    if (!this.canFetchMetadata || this.fetching || this.saving || this.readFailed) return;
+    this.fetching = true;
+    this.error = '';
+    this.metadataMessage = '';
+    try {
+      const downloaded = await this._cfg.lookupMetadata(this.game().gameId);
+      let filled = 0;
+      for (const field of this.metadataFields) {
+        const value = cfgMetadataValue(downloaded, field.key);
+        if (!this.metadata[field.key]?.trim() && value) {
+          this.metadata[field.key] = field.key === 'Description' ? value.slice(0, 255) : value;
+          filled++;
+        }
+      }
+      this.metadataMessage = filled ? `Filled ${filled} field(s). Save to write them to the library drive.` :
+        'No additional metadata is available for this game ID. You can enter it manually.';
+    } catch (error) {
+      this.error = error instanceof Error ? error.message : String(error);
+    } finally {
+      this.fetching = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  private applyMetadata(next: GameCfg): void {
+    if (!this.supportsMetadata) return;
+    for (const field of this.metadataFields) {
+      const value = (this.metadata[field.key] || '').replace(/[\r\n]+/g, ' ').trim();
+      // Preserve untouched legacy fields verbatim, including long descriptions.
+      if (value === this.initialMetadata[field.key]) continue;
+      for (const key of Object.keys(next)) {
+        const canonical = key.replace(/^#/, '').toLowerCase();
+        if (canonical === field.key.toLowerCase() || (field.key === 'PlayersText' && canonical === 'players')) delete next[key];
+      }
+      if (value) next[field.key] = value;
+      if (field.key === 'PlayersText' && value) {
+        const counts = value.match(/\d+/g)?.map(Number) ?? [];
+        if (counts.length) next['Players'] = `players/${Math.max(...counts)}`;
+      }
+    }
   }
 
   async save() {
@@ -130,6 +192,7 @@ export class GameCfgDialogComponent {
     this.error = '';
     try {
       const next: GameCfg = { ...this.entries };
+      this.applyMetadata(next);
       const trimmed = this.title.trim();
       if (trimmed) next[CFG_KEY_NAME] = trimmed;
       else delete next[CFG_KEY_NAME];
@@ -175,7 +238,7 @@ export class GameCfgDialogComponent {
   }
 
   close() {
-    if (this.saving) return;
+    if (this.saving || this.fetching) return;
     this.closed.emit();
   }
 }

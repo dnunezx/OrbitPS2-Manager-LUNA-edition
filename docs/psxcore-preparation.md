@@ -145,7 +145,7 @@ this desktop task.
 Recorded desktop verification on 2026-10-11: backend build passed; Angular
 development and production builds passed; 20 preparation checks and 13 native
 PSXCore validator comparisons passed; renderer propagation/library checks and
-the existing regression checks passed. Windows filesystem tests
+the existing genre/metadata regression checks passed. Windows filesystem tests
 required execution outside the sandbox; the production build required network
 access for its existing Google Fonts stylesheet. Native test executables and
 disposable fixtures were removed after verification.

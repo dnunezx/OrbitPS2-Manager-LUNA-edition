@@ -191,6 +191,10 @@ These "convert back" actions are per-game only — there's no library-wide bulk 
 Open **⋮ → Game settings** on any PS2 game (or a PS1 launcher) to edit its OPL `.cfg`:
 
 - **Display title** — the name OPL shows instead of the filename.
+- **Game metadata** — read and edit release date, developer, description and number of players from `CFG/<GAME_ID>.cfg` on the library drive. Saving creates the file if needed. Descriptions support up to 255 characters and are saved on one line.
+- **Fill missing metadata** — look up a PS2 game by its exact ID in the [OPL metadata database](https://github.com/t0mg/PS2-OPL-CFG-Database). Only empty metadata fields are filled. Review the result and click Save to write it; Cancel discards it. Coverage varies by ID and field; you can enter missing values manually. Local reads and manual edits work offline.
+
+PS2 imports and artwork downloads automatically fetch and save missing release date, developer, description and player metadata. Imports also fetch metadata when artwork is turned off, and artwork jobs still fill missing metadata when all selected images already exist. Existing values and OPL settings are preserved. Database/network failures do not block importing a game. Opening a library continues to read local files without requiring the network.
 - **Compatibility modes** — toggle OPL's per-game compatibility flags.
 - **VMC slots** — assign a virtual memory card to Slot 1 / Slot 2.
 

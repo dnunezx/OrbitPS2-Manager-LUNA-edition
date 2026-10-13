@@ -116,6 +116,7 @@ describe('JobsService artwork job results', () => {
       checkArtFilesExist: (_dir: string, files: string[]) =>
         Promise.resolve(files.filter((f) => existing.includes(f))),
       downloadArtByGameId: () => downloadImpl(),
+      fillGameMetadata: () => Promise.resolve([]),
     };
 
     service = TestBed.inject(JobsService);

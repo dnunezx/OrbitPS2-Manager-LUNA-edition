@@ -450,6 +450,7 @@ export class JobsService {
     }
 
     if (toDownload.length === 0) {
+      await window.libraryAPI.fillGameMetadata(dirPath, [job.gameId], job.system ?? 'PS2');
       this.logJob(job.id, 'Already up to date', 'success');
       return {
         success: true,
@@ -720,6 +721,11 @@ export class JobsService {
           job.gameId,
           'PS2',
         );
+      } else {
+        const metadata = await window.libraryAPI.fillGameMetadata(dirPath, [job.gameId], 'PS2');
+        for (const result of metadata) {
+          if (!result.success) this._logger.error('metadata', result.message ?? 'Metadata lookup failed');
+        }
       }
 
       return { success: true };

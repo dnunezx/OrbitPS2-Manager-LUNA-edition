@@ -10,7 +10,7 @@
     "setup": "node scripts/setup.js",
     "postinstall": "electron-builder install-app-deps",
     "build": "tsc",
-    "test:cfg": "npm run build && node tests/cfg.test.cjs",
+    "test:metadata": "npm run build && node tests/metadata.test.cjs",
     "test:ps1": "npm run build && node tests/ps1-preparation.test.cjs && node tests/ps1-renderer.test.cjs",
     "build:watch": "tsc -w",
     "build:info": "node scripts/generate-build-info.js",
