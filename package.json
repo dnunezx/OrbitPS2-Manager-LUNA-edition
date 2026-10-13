@@ -1,6 +1,6 @@
 {
   "name": "orbitps2-manager-luna-edition",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A LUNA-aware, cross-platform manager for PS2 game libraries and PSBBN artwork.",
   "main": "dist/src/main.js",
   "author": "LUNA contributors",
