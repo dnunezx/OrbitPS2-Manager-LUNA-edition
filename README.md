@@ -191,10 +191,6 @@ These "convert back" actions are per-game only — there's no library-wide bulk 
 Open **⋮ → Game settings** on any PS2 game (or a PS1 launcher) to edit its OPL `.cfg`:
 
 - **Display title** — the name OPL shows instead of the filename.
-- **Game metadata** — read and edit release date, developer, description, genre, and number of players from `CFG/<GAME_ID>.cfg` on the library drive. Saving creates the file if needed. Descriptions support up to 255 characters and are saved on one line.
-- **Fill missing metadata** — look up a PS2 game by its exact ID in the [OPL metadata database](https://github.com/t0mg/PS2-OPL-CFG-Database). Only empty metadata fields are filled. Review the result and click Save to write it; Cancel discards it. Coverage varies by ID and field; you can enter missing values manually. Local reads and manual edits work offline.
-
-PS2 imports and artwork downloads automatically fetch and save missing release date, developer, description, genre, and player metadata. Imports also fetch metadata when artwork is turned off, and artwork jobs still fill missing metadata when all selected images already exist. Existing values and OPL settings are preserved. Database/network failures do not block importing a game. Opening a library continues to read local files without requiring the network.
 - **Compatibility modes** — toggle OPL's per-game compatibility flags.
 - **VMC slots** — assign a virtual memory card to Slot 1 / Slot 2.
 
@@ -334,23 +330,3 @@ npm run package:linux   # Linux (DEB, AppImage, ZIP)
 3. Make your changes and commit them with clear messages.
 4. Push to your fork and submit a pull request.
 5. Ensure your code follows the project's coding standards.
-
-## PS2 save icon bundles
-
-Library → PS2 → menu → **Download PS2 save icons** checks installed game titles
-against the PS2IODB catalog. A game is installed only when its normalized title
-has exactly one contributed icon. Missing and multi-variant titles are shown as
-failed jobs for review; existing bundles are skipped.
-
-Each installed bundle is written to `ART/SAVEICON/<GAME_ID>/` on the selected
-OPL/LUNA drive. `manifest.json` identifies the game and the normal/copy/delete
-models. The corresponding `.obj`, `.mtl`, and `.png` assets and `iconsys.json`
-are stored beside it. Loader also renders the normal icon model to a 256×256
-transparent `preview.png` at a three-quarter angle for LUNA's save-icon gallery. Twelve 160×160
-`spin/00.png`–`spin/11.png` frames show the selected model rotating in the
-gallery's detail panel. Older installed bundles gain these images the next
-time the bulk action runs.
-
-Source: [PS2IODB](https://github.com/Issung/PS2IODB). Its catalog uses game
-titles rather than disc serials, so the loader deliberately avoids fuzzy title
-matches and does not assume the icon matches a particular regional save.

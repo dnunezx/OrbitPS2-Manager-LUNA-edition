@@ -6,24 +6,6 @@ export type GameCfg = Record<string, string>;
 
 /** OPL per-game config keys (the sigil is part of the key). */
 export const CFG_KEY_NAME = '#Name';
-export const CFG_KEY_GENRE = 'Genre';
-export const CFG_METADATA_FIELDS = [
-  { key: 'Release', label: 'Release date', placeholder: 'MM-DD-YYYY (or year)' },
-  { key: 'Developer', label: 'Developer', placeholder: 'Developer' },
-  { key: 'Genre', label: 'Genre', placeholder: 'Genre' },
-  { key: 'PlayersText', label: 'Number of players', placeholder: '1, 2, or 1-4' },
-  { key: 'Description', label: 'Description', placeholder: 'Game description' },
-] as const;
-
-/** Handle legacy # prefixed keys and OPL's players/<count> format. */
-export function cfgMetadataValue(entries: GameCfg, field: string): string {
-  let value = '';
-  for (const [key, text] of Object.entries(entries)) {
-    if (key.replace(/^#/, '').toLowerCase() === field.toLowerCase()) value = text;
-  }
-  if (field === 'PlayersText' && !value) return cfgMetadataValue(entries, 'Players').replace(/^players\//i, '');
-  return value;
-}
 export const CFG_KEY_LONGNAME = '#LongName';
 export const CFG_KEY_COMPAT = '$Compatibility';
 export const CFG_KEY_VMC0 = '$VMC_0';
@@ -83,35 +65,5 @@ export class CfgService {
     }
     this._logger.log('cfgService', `Saved CFG for ${gameId}`);
     return true;
-  }
-
-  async genreLabels(): Promise<string[]> { return window.libraryAPI.genreLabels(); }
-
-  async lookupMetadata(gameId: string): Promise<GameCfg> {
-    const res = await window.libraryAPI.lookupGameMetadata(gameId);
-    if (!res.success) throw new Error(res.message || 'Unable to download metadata');
-    return res.entries;
-  }
-
-  async readGenres(gameIds: string[]): Promise<LunaGenreResult[]> {
-    const root = this._library.currentDirectoryValue;
-    if (!root) return [];
-    return window.libraryAPI.readGameGenres(root, gameIds);
-  }
-
-  async assignGenres(gameIds: string[], genre: string): Promise<LunaGenreResult[]> {
-    const root = this._library.currentDirectoryValue;
-    if (!root) return [];
-    const results = await window.libraryAPI.assignGameGenres(root, gameIds, genre);
-    this._library.applyGenres(results);
-    return results;
-  }
-
-  async fillMissingGenres(gameIds: string[], system: 'PS1' | 'PS2' = 'PS2'): Promise<LunaGenreResult[]> {
-    const root = this._library.currentDirectoryValue;
-    if (!root) return [];
-    const results = await window.libraryAPI.fillGameGenres(root, gameIds, system);
-    this._library.applyGenres(results);
-    return results;
   }
 }

@@ -4,7 +4,6 @@ import { mergeMultiBin } from "../utils/binmerge";
 import { parseCueSheet, getCueDirectory } from "../utils/cue-parser";
 import { tryDetermineGameIdFromHex } from "./game-id-resolver.service";
 import { downloadArtByGameId } from "./artwork.service";
-import { fillGameMetadata } from "./game-metadata.service";
 import { sanitizeGameFilename } from "../utils/sanitize";
 import { createLogger, formatBytes } from "../logger";
 
@@ -230,10 +229,6 @@ export async function importPs2CdGame(
       }
     }
 
-    if (!downloadArtwork) {
-      const metadata = await fillGameMetadata(oplRoot, [gameId], "PS2");
-      for (const result of metadata) if (!result.success) log.warn(`Game metadata: ${result.message}`);
-    }
     if (onProgress) onProgress(100, "Import complete");
 
     log.info(`PS2 CD import complete: ${gameId} (${gameName}) → ${isoFilename}`);

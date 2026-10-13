@@ -4,7 +4,6 @@ import path from "path";
 import https from "https";
 import { dialog, nativeImage } from "electron";
 import { createLogger, formatBytes } from "../logger";
-import { fillGameMetadata } from "./game-metadata.service";
 import { ensureChildDirectory } from "../utils/safe-install";
 import { artRemoteFileNames, artSlotFileNames } from "./artwork-filenames";
 import { validateArtworkPng } from "../utils/png-artwork";
@@ -126,11 +125,6 @@ export async function downloadArtByGameId(
     artTypes ?? (system === "PS2" ? ["COV", "ICO", "SCR", "LGO", "PSBBN"] : ["COV", "ICO", "SCR", "LGO"]);
   const results: any[] = [];
   const localName = saveAsName || gameId;
-  // Independent of cover availability: absent artwork still gets metadata.
-  const metadataTask = downloader === downloadBuffer
-    ? fillGameMetadata(path.dirname(dirPath), [gameId], system)
-      .catch((error) => [{ gameId, success: false, genre: "Uncategorized", message: String(error) }])
-    : Promise.resolve([]);
   /** Remote files already written by an earlier type of this call. */
   const claimed = new Set<string>();
 
@@ -262,17 +256,13 @@ export async function downloadArtByGameId(
   }
 
   const saved = results.filter((r) => r.savedPath).length;
-  const genres = await metadataTask;
-  for (const result of genres) {
-    if (!result.success) log.warn(`Game metadata for ${gameId}: ${result.message}`);
-  }
   log.info(`Artwork for ${gameId}: ${saved}/${types.length} file(s) downloaded`);
   if (saved === 0) {
     const msg = `No artwork found for ${gameId} in ${system} database.`;
     log.warn(msg);
-    return { success: false, data: results, message: msg, genres };
+    return { success: false, data: results, message: msg };
   }
-  return { success: true, data: results, genres };
+  return { success: true, data: results };
 }
 
 export interface AvailableArtEntry {

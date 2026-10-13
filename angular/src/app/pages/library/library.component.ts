@@ -65,26 +65,6 @@ export class LibraryComponent {
     return this.activeTabSubject.getValue();
   }
 
-  /** Installs unambiguous PS2 memory-card icon bundles for installed games. */
-  downloadAllSaveIcons() {
-    const seen = new Set<string>();
-    const targets = this._libraryService.currentLibraryValue.filter((g) => {
-      if ((g.system ?? 'PS2') !== 'PS2' || !g.gameId || !g.title || seen.has(g.gameId)) return false;
-      seen.add(g.gameId);
-      return true;
-    });
-    if (!targets.length) {
-      window.alert('No installed PS2 games with a game ID and title were found.');
-      return;
-    }
-    if (!window.confirm(`Download save icons for ${targets.length} PS2 game(s)?\n\n` +
-        'Only exact, single-icon title matches are installed. Missing or multiple matches appear in Jobs.')) return;
-    this._jobs.enqueue(targets.map((g) => ({
-      type: 'save-icon', label: g.title!, filePath: g.path, gameId: g.gameId,
-      gameName: g.title!, downloadArtwork: false,
-    })));
-  }
-
   /** Queues a ZSO compression job for every PS2 ISO in the library. */
   convertAllToZso() {
     const candidates = this._libraryService.currentLibraryValue.filter(

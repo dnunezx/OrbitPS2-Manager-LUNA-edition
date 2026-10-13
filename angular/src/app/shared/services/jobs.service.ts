@@ -23,7 +23,6 @@ export type ImportJobType =
   | 'vcd-to-bin'
   | 'apps'
   | 'artwork'
-  | 'save-icon'
   | 'rename'
   | 'ps1-convert-popsloader'
   | 'ps1-convert-popstarter';
@@ -263,9 +262,7 @@ export class JobsService {
         // (bulk flows queue one job per game and would re-read it every time).
         // Everything else changes the file set on disk and needs a full
         // re-scan, which supersedes any pending artwork refresh.
-        if (next.type === 'save-icon') {
-          // Save icons are outside the ordinary cover-art scan.
-        } else if (next.type === 'artwork' && result?.artRefresh !== false) {
+        if (next.type === 'artwork' && result?.artRefresh !== false) {
           this.pendingArtRefresh.add(next.gameId);
         } else {
           this.pendingArtRefresh.clear();
@@ -340,8 +337,6 @@ export class JobsService {
         return this.runAppsJob(job, dirPath);
       case 'artwork':
         return this.runArtworkJob(job, dirPath);
-      case 'save-icon':
-        return this.runSaveIconJob(job, dirPath);
       case 'rename':
         return this.runRenameJob(job);
       case 'ps1-convert-popsloader':
@@ -357,11 +352,6 @@ export class JobsService {
   private async runAppsJob(job: ImportJob, dirPath: string) {
     this.patchJob(job.id, { stage: 'Copying ELF…', percent: 50 });
     return window.libraryAPI.importApp(dirPath, job.filePath, job.gameName);
-  }
-
-  private async runSaveIconJob(job: ImportJob, dirPath: string) {
-    this.patchJob(job.id, { stage: 'Matching and downloading save icon…', percent: 30 });
-    return window.libraryAPI.downloadSaveIcon(dirPath, job.gameId, job.gameName);
   }
 
   private async runArtworkJob(job: ImportJob, dirPath: string) {
@@ -460,8 +450,6 @@ export class JobsService {
     }
 
     if (toDownload.length === 0) {
-      const genres = await window.libraryAPI.fillGameMetadata(dirPath, [job.gameId], job.system ?? 'PS2');
-      this._library.applyGenres(genres);
       this.logJob(job.id, 'Already up to date', 'success');
       return {
         success: true,
@@ -487,7 +475,6 @@ export class JobsService {
       artSaveOverrides,
       job.wideSlotFallback,
     );
-    if (result?.genres) this._library.applyGenres(result.genres);
 
     // Per-type outcome. `runJob` must report `success` whenever anything was
     // written — that is what queues the game for `pendingArtRefresh` — but a
@@ -733,11 +720,6 @@ export class JobsService {
           job.gameId,
           'PS2',
         );
-      } else {
-        const genres = await window.libraryAPI.fillGameMetadata(dirPath, [job.gameId], 'PS2');
-        for (const result of genres) {
-          if (!result.success) this._logger.error('metadata', result.message ?? 'Metadata lookup failed');
-        }
       }
 
       return { success: true };

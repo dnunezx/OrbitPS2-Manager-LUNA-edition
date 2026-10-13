@@ -1,12 +1,5 @@
 // Copyright (c) 2026 dnunezx — original LUNA Edition changes.
 /** Electron preload (contextBridge) API exposed on `window.libraryAPI`. */
-declare interface LunaGenreResult {
-  gameId: string;
-  success: boolean;
-  genre: string;
-  changed?: boolean;
-  message?: string;
-}
 declare interface PsxcoreStatus {
   success: boolean;
   pops?: { valid: boolean; message: string; path?: string };
@@ -164,10 +157,6 @@ declare interface Window {
 
     /** Remove all PS1 delete progress listeners. */
     removeAllDeletePs1ProgressListeners: () => void;
-
-    /** Download an exact-title PS2 memory-card save icon bundle to ART/SAVEICON. */
-    downloadSaveIcon: (oplRoot: string, gameId: string, title: string) =>
-      Promise<{ success: boolean; message: string; savedPath?: string }>;
 
     /**
      * Download cover/background art for a game by its ID.
@@ -436,15 +425,6 @@ declare interface Window {
       title?: string;
       boot?: string;
       gameId?: string;
-      developer?: string;
-      genre?: string;
-      release?: string;
-      ratingText?: string;
-      rating?: string;
-      description?: string;
-      parentalText?: string;
-      parental?: string;
-      playersText?: string;
       message?: string;
     }>;
     /** Read a game CFG file (`CFG/<gameId>.cfg`). */
@@ -453,13 +433,7 @@ declare interface Window {
       gameId: string,
     ) => Promise<{ success: boolean; entries: Record<string, string>; message?: string }>;
 
-    lookupGameMetadata: (gameId: string) => Promise<{ success: boolean; entries: Record<string, string>; message?: string }>;
-    fillGameMetadata: (oplRoot: string, gameIds: string[], system?: 'PS1' | 'PS2') => Promise<(LunaGenreResult & { entries: Record<string, string> })[]>;
     patchGameCfg: (oplRoot: string, gameId: string, changes: Record<string, string | null>) => Promise<{ success: boolean; message?: string }>;
-    genreLabels: () => Promise<string[]>;
-    readGameGenres: (oplRoot: string, gameIds: string[]) => Promise<LunaGenreResult[]>;
-    assignGameGenres: (oplRoot: string, gameIds: string[], genre: string) => Promise<LunaGenreResult[]>;
-    fillGameGenres: (oplRoot: string, gameIds: string[], system?: 'PS1' | 'PS2') => Promise<LunaGenreResult[]>;
 
     /** Write entries to a game CFG file. */
     writeGameCfg: (

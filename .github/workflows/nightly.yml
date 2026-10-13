@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the Nightly release after building
+        type: boolean
+        required: false
+        default: true
 
 # Queue runs instead of cancelling them. A cancel during publish can leave the
 # release with assets from two builds. A newer queued run replaces an older one.
@@ -98,8 +104,9 @@ jobs:
 
   publish:
     needs: build
+    # Build-only manual runs leave publication to the signed-in release owner.
     # A manual run on another branch still builds, but only main publishes.
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name != 'workflow_dispatch' || inputs.publish)
     runs-on: ubuntu-latest
     permissions:
       contents: write

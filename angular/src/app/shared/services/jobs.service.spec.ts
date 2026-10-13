@@ -91,7 +91,6 @@ describe('JobsService artwork job results', () => {
           provide: LibraryService,
           useValue: {
             currentDirectoryValue: '/games/Test Game',
-            applyGenres: () => {},
             updateArtForGame: (id: string) => {
               updateArtForGame.push(id);
               return Promise.resolve();
@@ -117,7 +116,6 @@ describe('JobsService artwork job results', () => {
       checkArtFilesExist: (_dir: string, files: string[]) =>
         Promise.resolve(files.filter((f) => existing.includes(f))),
       downloadArtByGameId: () => downloadImpl(),
-      fillGameMetadata: () => Promise.resolve([]),
     };
 
     service = TestBed.inject(JobsService);
