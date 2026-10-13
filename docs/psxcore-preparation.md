@@ -72,9 +72,12 @@ existing files. Original game sources remain intact in every PS1 mode.
 
 ## PSXCore prerequisite status
 
-The setup/status panel is read-only. Select a separately supplied bootstrap,
-POPS.ELF and IOPRP252.IMG, or inspect firmware already at `/POPS`. Nothing is
-copied or modified. Status does not block disc preparation.
+The drive-files panel is read-only. Select separately supplied POPS.ELF and
+IOPRP252.IMG, or inspect firmware already at `/POPS` on the USB or hard drive.
+The PSXCore bootstrap is installed on the PS2 memory card and is not selected
+or checked by the desktop importer. Old saved bootstrap and build-fingerprint
+paths are ignored. Nothing is copied or modified by these checks, and status
+does not block disc preparation or verify the console installation.
 
 Current source pins these runtime identities:
 
@@ -83,25 +86,9 @@ Current source pins these runtime identities:
 | POPS.ELF | 3166988 | `59df3389c4df88a572daa720b05507c52c34eddfa0031a6fbeec55e0c2d0fcb1` |
 | IOPRP252.IMG | 265233 | `3338b238d84d7d586b716677e3a1c03b2088b882ecfa17f91fc33798931ca3ba` |
 
-An ELF filename or ELF header does not prove revision compatibility. The local
-`build/runtime/psxcore-runtime-bootstrap.elf` available during implementation
-was built from older copied source than the current v6 contract; its known
-SHA-256 is rejected. To verify a newer bootstrap, select a trusted build
-fingerprint describing the selected revision:
-
-```json
-{
-  "revision": "Your verified PSXCore build revision",
-  "fileRequestVersion": 6,
-  "fileRequestBytes": 1072,
-  "bootstrap": { "bytes": 123456, "sha256": "<64 hexadecimal characters from that build>" }
-}
-```
-
-The size and SHA-256 values must come from that trusted build, not guesses.
-The desktop checks the exact fingerprint and ELF32 little-endian MIPS form;
-it does not authenticate a fingerprint's publisher. Firmware compatibility
-remains pinned to the source revision above.
+The desktop checks each drive runtime file's exact size and SHA-256, and
+requires POPS.ELF to have the ELF32 little-endian MIPS form. Bootstrap
+compatibility is handled by the console installation.
 
 ## Remaining LUNA console dependency
 

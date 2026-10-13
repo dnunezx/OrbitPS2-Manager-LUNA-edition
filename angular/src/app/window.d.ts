@@ -9,8 +9,6 @@ declare interface LunaGenreResult {
 }
 declare interface PsxcoreStatus {
   success: boolean;
-  revision?: string;
-  bootstrap?: { valid: boolean; message: string; path?: string };
   pops?: { valid: boolean; message: string; path?: string };
   iop?: { valid: boolean; message: string; path?: string };
   readyToLaunch?: false;
@@ -260,7 +258,7 @@ declare interface Window {
     ) => Promise<any>;
     inspectPs1Source: (file: string) => Promise<{ success: boolean; path?: string; discs?: string[]; message?: string }>;
     getPsxcoreStatus: (root: string) => Promise<PsxcoreStatus>;
-    selectPsxcoreFile: (kind: 'revisionFile' | 'bootstrap' | 'pops' | 'iop') => Promise<{ canceled: boolean; filePaths: string[] }>;
+    selectPsxcoreFile: (kind: 'pops' | 'iop') => Promise<{ canceled: boolean; filePaths: string[] }>;
     validatePs1Vcd: (file: string) => Promise<{ success: boolean; sectors?: number; tracks?: number; bytes?: number; message?: string }>;
 
     /** Listen for PS1 import progress events. */
@@ -588,7 +586,7 @@ declare interface AppSettings {
   autoReconnect: boolean;
   /** Last-picked PS1 launcher style on the Import screen. */
   ps1LauncherMode?: 'popstarter' | 'popsloader' | 'psxcore';
-  psxcoreFiles?: { revisionFile?: string; bootstrap?: string; pops?: string; iop?: string };
+  psxcoreFiles?: { pops?: string; iop?: string };
   /** Optional Ember root/games folder overrides keyed by mounted OPL root. */
   emberDirectories?: Record<string, string>;
   /** UI color theme. "system" follows the OS light/dark preference (OrbitPS2 only). */

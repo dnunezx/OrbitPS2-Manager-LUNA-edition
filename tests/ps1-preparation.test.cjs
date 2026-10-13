@@ -24,7 +24,7 @@ const { mergeMultiBin } = require('../dist/src/utils/binmerge');
 const { parseCueSheet } = require('../dist/src/utils/cue-parser');
 const { importPs2CdGame } = require('../dist/src/services/cd-import.service');
 const { publishFile, requireSpace } = require('../dist/src/utils/safe-install');
-const { getPsxcoreStatus, readPsxcoreRevision, verifyPsxcoreFile } = require('../dist/src/services/psxcore-status.service');
+const { getPsxcoreStatus, verifyPsxcoreFile } = require('../dist/src/services/psxcore-status.service');
 const { getSettings, setSetting } = require('../dist/src/services/settings.service');
 const { deleteGameAndRelatedFiles } = require('../dist/src/services/delete.service');
 const { normalizeRiptOplPs1Storage } = require('../dist/src/services/rename.service');
@@ -218,6 +218,29 @@ async function importDisc(source, root, title, mode = 'psxcore', entry, art = fa
       try { await assert.rejects(publishFile(single, raced, validateVcd), /EEXIST/); assert.equal((await fs.readFile(raced)).toString(), 'another import owns this'); }
       finally { fs.link = originalLink; }
     });
+    if (process.platform === 'win32') await test('Windows FAT/exFAT EISDIR falls back to copying without replacing other files', async () => {
+      const originalLink = fs.link;
+      const unsupported = () => Object.assign(new Error('EISDIR: illegal operation on a directory, link'), { code: 'EISDIR' });
+      const failed = path.join(drive, 'POPS', 'WindowsFailed.VCD');
+      const raced = path.join(drive, 'POPS', 'WindowsRace.VCD');
+      const sourceBefore = await fs.readFile(single);
+      fs.link = async () => { throw unsupported(); };
+      try {
+        const result = await importDisc(single, drive, 'WindowsFat');
+        assert.equal(result.success, true, result.message);
+        assert.deepEqual(await fs.readFile(result.vcdPath), sourceBefore);
+        await validateVcd(result.vcdPath); await noTemps(drive);
+        await assert.rejects(publishFile(single, result.vcdPath, validateVcd), /already exists/);
+        await assert.rejects(publishFile(single, failed, async () => { throw new Error('verification interruption'); }), /verification interruption/);
+        await absent(failed);
+        await assert.rejects(publishFile(source, failed, validateVcd), /EISDIR/);
+        await absent(failed);
+        fs.link = async (_from, to) => { await fs.writeFile(to, 'another import owns this', { flag: 'wx' }); throw unsupported(); };
+        await assert.rejects(publishFile(single, raced, validateVcd), /EEXIST/);
+        assert.equal((await fs.readFile(raced)).toString(), 'another import owns this');
+        assert.deepEqual(await fs.readFile(single), sourceBefore);
+      } finally { fs.link = originalLink; }
+    });
     await test('POPStarter/POPSLoader retain layouts and refuse collisions', async () => {
       const pop = await importDisc(cue, drive, 'Legacy', 'popstarter'); assert(pop.success, pop.message);
       assert.match(pop.vcdPath, /HBRW_\d{3}\.\d{2}\.Legacy\.VCD$/);
@@ -246,14 +269,18 @@ async function importDisc(source, root, title, mode = 'psxcore', entry, art = fa
       const r = await importPs1Game(cue, drive, 'XX.', true, 'SLUS_123.45', 'Serial', 'psxcore'); assert(r.success, r.message);
       const args = artworkCalls.at(-1); assert.equal(args[3], 'SLUS_123.45'); assert.deepEqual(args[4], ['COV', 'PSBBN']); assert.equal(args[5], true);
     });
-    await test('PSXCore status is read-only; firmware identity and ABI fingerprints are checked', async () => {
+    await test('PSXCore status checks drive firmware and ignores legacy memory-card bootstrap settings', async () => {
       const before = (await fs.readdir(path.join(drive, 'POPS'))).sort();
       const r = await getPsxcoreStatus(drive); assert.equal(r.readyToLaunch, false); assert.equal(r.pops.valid, false);
       assert.deepEqual((await fs.readdir(path.join(drive, 'POPS'))).sort(), before);
       const p = await file(source, 'Wrong.ELF', Buffer.alloc(52));
       assert.equal((await verifyPsxcoreFile(p, { bytes: 52, sha256: '0'.repeat(64) }, true)).valid, false);
-      const fingerprint = await file(source, 'Old.json', JSON.stringify({ revision: 'old', fileRequestVersion: 5, fileRequestBytes: 1024, bootstrap: { bytes: 52, sha256: '0'.repeat(64) } }));
-      await assert.rejects(readPsxcoreRevision(fingerprint), /v6/);
+      const fingerprint = await file(source, 'Old.json', 'invalid legacy fingerprint');
+      const legacy = await getPsxcoreStatus(drive, { revisionFile: fingerprint, bootstrap: path.join(source, 'MissingBootstrap.ELF') });
+      assert.deepEqual(legacy, r);
+      assert.equal('bootstrap' in legacy, false);
+      assert.equal('revision' in legacy, false);
+      assert.match(legacy.message, /PS2 memory card/);
     });
     await test('PSXCore game deletion leaves pre-existing saves/cards/runtime byte-for-byte intact', async () => {
       const sentinels = ['ps1emu/card0', 'ps1emu/card1', 'CARDS/Shared.vmc', 'SAVES/old/card0', 'POPS.ELF', 'IOPRP252.IMG'];

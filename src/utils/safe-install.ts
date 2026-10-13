@@ -33,7 +33,10 @@ export async function publishFile(temp: string, final: string, validate: (p: str
   try {
     await fs.link(temp, final);
   } catch (error: any) {
-    if (!["EPERM", "ENOTSUP", "EOPNOTSUPP", "EXDEV", "ENOSYS"].includes(error.code)) throw error;
+    // Windows reports unsupported hard links on FAT/exFAT as EISDIR.
+    const unsupportedWindowsLink = process.platform === "win32" && error.code === "EISDIR";
+    if (!unsupportedWindowsLink && !["EPERM", "ENOTSUP", "EOPNOTSUPP", "EXDEV", "ENOSYS"].includes(error.code)) throw error;
+    if (unsupportedWindowsLink && !(await fs.lstat(temp)).isFile()) throw error;
     const handle = await fs.open(final, "wx");
     try {
       await pipeline(createReadStream(temp), createWriteStream(final, { fd: handle.fd, autoClose: false }));

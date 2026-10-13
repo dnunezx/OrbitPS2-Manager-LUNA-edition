@@ -204,7 +204,7 @@ function buildLibraryAPI() {
     // ── Import ─────────────────────────────────────
     inspectPs1Source: (file: string) => ipcRenderer.invoke("inspect-ps1-source", file),
     getPsxcoreStatus: (root: string) => ipcRenderer.invoke("psxcore-status", root),
-    selectPsxcoreFile: (kind: "revisionFile" | "bootstrap" | "pops" | "iop") => ipcRenderer.invoke("psxcore-select-file", kind),
+    selectPsxcoreFile: (kind: "pops" | "iop") => ipcRenderer.invoke("psxcore-select-file", kind),
     validatePs1Vcd: (file: string) => ipcRenderer.invoke("validate-ps1-vcd", file),
     importPs1Game: (
       cueFilePath: string,

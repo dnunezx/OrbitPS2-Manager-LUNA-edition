@@ -52,7 +52,7 @@ export class ImportComponent implements OnInit {
     finally { this.checkingPsxcore = false; }
   }
 
-  async selectPsxcoreFile(kind: 'revisionFile' | 'bootstrap' | 'pops' | 'iop') {
+  async selectPsxcoreFile(kind: 'pops' | 'iop') {
     const result = await window.libraryAPI.selectPsxcoreFile(kind);
     if (!result.canceled) await this.refreshPsxcoreStatus();
   }
